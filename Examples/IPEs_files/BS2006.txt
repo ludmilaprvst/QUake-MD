@@ -1,0 +1,6 @@
+ Bakun and Scotti Mw SCR + Pyrenean
+
+Weigth	C1	C2	Beta	Gamma
+
+0.5	4.81	1.27	-3.87	0.00E+00
+0.5	4.66	1.27	-3.83	0.00E+00 
