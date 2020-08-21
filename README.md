@@ -43,7 +43,7 @@ Detailed information about the installation and the use of QUake-MD GUI are avai
 
 ## Reference to use QUake-MD
 
-Please reference the use of QUake-MD as: Provost Ludmila, Scotti Oona, "QUake-MD: open source code to Quantify Uncertainties in Magnitude-Depth estimates from macroseismic intensities" (submitted)
+Please reference the use of QUake-MD as: Provost L., Scotti O. (2020), QUake-MD: open source code to Quantify Uncertainties in Magnitude-Depth estimates of Earthquakes from macroseismic intensities, Seismol. Res. Lett., XX, 1-11, doi : 10.1785/0220200064
 
 
 
