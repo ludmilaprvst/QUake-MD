@@ -76,7 +76,7 @@ class QUakeMD():
         self.LimitForSamplingInStd = LimitForSamplingInStd
          
         # Initialization of the logfile
-        logfilename = '{date:%Y-%m-%d_%H:%M:%S.txt}'.format(date=datetime.datetime.now())
+        logfilename = '{date:%Y-%m-%d_%H-%M-%S.txt}'.format(date=datetime.datetime.now())
         self.logfile = open(self.output_folder + '/' + logfilename,'w')
         self.writeOnLogFile("Output_folder: " + self.output_folder)
         self.writeOnLogFile("Number of events: " + str(self.evts.qsize()))

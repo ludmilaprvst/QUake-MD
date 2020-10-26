@@ -41,7 +41,7 @@ class plotEvtInterface(tk.Toplevel):
         
         self.buttonFileEvt = tk.Button(self, text=u"Browse", command=self.onButtonEvtClick)
         self.buttonFileObs = tk.Button(self, text=u"Browse", command=self.onButtonObsClick)
-        self.buttonFileParameter = tk.Button(self, text=u"Browse", command=self.onButtonParameterClick)
+        #self.buttonFileParameter = tk.Button(self, text=u"Browse", command=self.onButtonParameterClick)
         self.buttonLaunch = tk.Button(self, text=u"Launch", command=self.onButtonLaunchClick)
         self.buttonReset = tk.Button(self, text=u"Reset", command=self.onButtonResetClick, state='disabled')
         
@@ -163,7 +163,7 @@ class plotEvtInterface(tk.Toplevel):
         self.entryCritique.config(state='disabled')
         self.buttonFileEvt.config(state='disabled')
         self.buttonFileObs.config(state='disabled')
-        self.buttonFileCritique.config(state='disabled')
+        #self.buttonFileCritique.config(state='disabled')
         
         self.buttonLaunch.config(state='disabled')
         self.buttonReset.config(state='normal')
