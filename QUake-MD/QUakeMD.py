@@ -113,7 +113,7 @@ class QUakeMD():
         
         # Initialization of python outputs (for future)
         self.index_result = 0
-        self.result_by_EMPE = pd.DataFrame(columns=['NumEvt','C1', 'C2', 'Beta',
+        self.result_by_EMPE = pd.DataFrame(columns=['NumEvt','Bin_method', 'C1', 'C2', 'Beta',
                                                'Gamma', 'Mag', 'StdM', 'H', 'StdH', 'Io'])
     
         while self.evts.qsize() > 0:
@@ -153,11 +153,6 @@ class QUakeMD():
         poids_presents = 0 
         
         Param_Evt = {}
-#        Param_Evt['EVID'] = evt.evid
-#        Param_Evt['QI0'] = evt.QI0
-#        Param_Evt['Io_ini'] = evt.Io_ini
-#        Param_Evt['Io_inf'] = evt.Io_inf
-#        Param_Evt['Io_sup'] = evt.Io_sup
         Param_Evt['Year'] = evt.year
         if self.Ic == False:
             Param_Evt['Ic'] = evt.Ic
@@ -169,10 +164,17 @@ class QUakeMD():
             
         self.writeOnLogFile("StdI_0 = " + str(evt.QI0))
         
+        # Saving the different isoseismal
         DataObs = copy.deepcopy(evt.Obsevid)
         DataObs_ref = evt.Obsevid
         Ic_ref = Param_Evt['Ic']
-        
+        unique_metbin = np.unique(self.listeIbin)
+        for metbin in unique_metbin:
+            evt.Binning_Obs(1, Param_Evt['Ic'], method_bin=metbin)
+            ObsBin = evt.ObsBinn
+            ObsBin_save = copy.deepcopy(ObsBin)
+            ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
+            ObsBin_save.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/IDP_binning_' + metbin + '.txt')
         # Application of the different IPEs stored in .txt files (for loop on the .txt files)
         for index in range(len(self.listVarEq)):
             # Initialization of figure with results of inversion of intensity data
@@ -192,7 +194,7 @@ class QUakeMD():
             # Initialization of Io and Ic
             I0_ini = evt.Io_ini
             StdI0 = evt.QI0
-            Io_evt = I0_ini
+            #Io_evt = I0_ini
             
             QI0_inv = StdI0
             I0 = I0_ini
@@ -263,10 +265,6 @@ class QUakeMD():
                     start_depth, start_mag = SearchBestStartDepth(evt, methode_bin,
                                                                   Beta, C1, C2, gamma,
                                                                   self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
-#                    start_depth, start_mag =SearchBestStartDepth_old(ObsComplet, Param_Evt, Binning,
-#                                                                     beta, c1, c2, gamma,
-#                                                                     self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test,
-#                                                                     I_value, methode_bin)
                     print(start_depth, start_mag)
                     if not start_depth:
                         Singular = True
@@ -341,21 +339,6 @@ class QUakeMD():
                     if comptlaw == 1:
                         ax.fill_between([0.1, 1000], evt.Io_inf, evt.Io_sup,
                                         color='PaleVioletRed', alpha=0.1)
-                        ObsBin_save = copy.deepcopy(ObsBin)
-                        StdI_0 = max([Std['A'], evt.QI0_inv])
-                        StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
-                        ObsBin = ObsBin.append({'EVID' : evt.evid,
-                                                'Depi' : 0,
-                                                'Hypo': depth,
-                                                'I': evt.Io_inv,
-                                                'StdI': StdI_0,
-                                                'Io': evt.Io_ini,
-                                                'Io_std': evt.QI0,
-                                                'StdLogR': 99,
-                                                'Ndata': 0}, 
-                             ignore_index=True)
-                        ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Io', 'Io_std', 'Ndata']]
-                        ObsBin_save.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/IDP_binning.txt')
 
                     ax.semilogx(Depi_pour_plot, Ipred, color=couleur_depth)
                     ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
@@ -389,7 +372,7 @@ class QUakeMD():
                     if abs(depth - self.depth_min_ref) < 0.001:
                         StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
                     # Storage of the IPEs central values and associated sigmas
-                    self.result_by_EMPE.loc[self.index_result] = [evt.evid, C1, C2, Beta, gamma, mag,
+                    self.result_by_EMPE.loc[self.index_result] = [evt.evid, methode_bin, C1, C2, Beta, gamma, mag,
                                        StdM_fin, depth, StdH_fin, I0]
                     # I0 filtering of the gaussian space of solutions
                     dM = self.LimitForSamplingInStd * StdM_fin / float(self.NSamples)
@@ -418,7 +401,7 @@ class QUakeMD():
                                     Hm = self.depth_min_ref
 
                                 Io_test = C1 + C2 * Mm + Beta * np.log10(Hm) + gamma * Hm
-                                if (Io_test >= Param_Evt['Io_inf']) and (Io_test <= Param_Evt['Io_sup']):
+                                if (Io_test >= evt.Io_inf) and (Io_test <= evt.Io_sup):
                                     Triplets['Magnitude'].append(float(Mm))
                                     Triplets['Profondeur'].append(float(Hm))
                                     Triplets['Io'].append(float(Io_test))
@@ -437,8 +420,12 @@ class QUakeMD():
                         
                     except ZeroDivisionError:
                         with open('No_start_depth'+ self.tag+'.txt','a') as no_startdepth:
-                            no_startdepth.write(str(Param_Evt['EVID']) + '\t' + empe + '\n')
+                            no_startdepth.write(str(evt.evid) + '\t' + empe + '\n')
                     except:
+#                        Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
+#                        print(self.depth_min_ref, depth)
+#                        print(mag, self.LimitForSamplingInStd * StdM_fin)
+#                        print(self.NSamples)
                         print('unknown error in solutions space constitution')
                                  
 #%%
@@ -504,7 +491,7 @@ class QUakeMD():
                 # MAJ du logfile
                 self.writeOnLogFile('Barycenter of the group of IPE:')
                 self.writeOnLogFile('M = %.2f; H = %.2f; I0 = %.2f' % (Barycentre_MagLaw, 10**Barycentre_LogHLaw, Barycentre_IoLaw))
-                print (str(Param_Evt['Year']))
+                print (str(evt.year))
                 
                 # End of the control figure of the IPE fit to the intensity decrease
                 plt.tight_layout()      
@@ -512,11 +499,11 @@ class QUakeMD():
                 Ibin_plt, = ax.plot([], [], 'd', markerfacecolor='w', markeredgecolor='k', label='Binned intensity with RAVG method')
                 Iobs_plt, = ax.plot([], [], '.', color='Gray', label='Observed intensities')
                 ax.legend(handles=[Io_uncertainties, Ibin_plt, Iobs_plt])
-                fig_intensity.savefig(foldername+'/'+str(Param_Evt['EVID'])+'_fit_intensity_Law_'+str(index)+'.jpeg', dpi=100,
+                fig_intensity.savefig(foldername+'/'+str(evt.evid)+'_fit_intensity_Law_'+str(index)+'_'+ methode_bin+'.jpeg', dpi=100,
                                         bbox_inches='tight')
                 # Save the IPE's .txt group space of solutions
-                fileLaw = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/Law_'+str(index)+ '_HM.txt', 'w')
-                fileLaw.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+                fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/Law_'+str(index)+'_'+ methode_bin+ '_HM.txt', 'w')
+                fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
                 fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
                 fileLaw.write('Barycenter Io:' + str(round(Barycentre_IoLaw,2))+'\n')
                 fileLaw.write('Barycenter M:' + str(round(Barycentre_MagLaw,2))+'\n')
@@ -550,9 +537,9 @@ class QUakeMD():
             self.writeOnLogFile('No result compatible with I0 could be found')
             self.writeOnLogFile('Last solution computed:')
             self.writeOnLogFile(str(mag)+ ", "+str(depth)+ ", "+str(I0))
-            self.writeOnLogFile(str(Param_Evt['Io_inf'])+ ", "+str(Param_Evt['Io_sup']))
+            self.writeOnLogFile(str(evt.Io_inf)+ ", "+str(evt.Io_sup))
             with open('Noresult.txt', 'a') as no_result:
-                no_result.write(str(Param_Evt['EVID'])+'\t'+str(mag)+'\t'+str(depth)+'\t'+str(I0)+'\n')
+                no_result.write(str(evt.evid)+'\t'+str(mag)+'\t'+str(depth)+'\t'+str(I0)+'\n')
             return
         # MAJ du logfile
         self.writeOnLogFile('Final barycenter :\n')
@@ -560,8 +547,8 @@ class QUakeMD():
         # Finalisation et sauvegarde de la figure de controle des solutions avec les intensites
        
         # save space of solution in HM space
-        filePDF = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HM.txt','w')
-        filePDF.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+        filePDF = open(self.output_folder+'/'+str(int(evt.evid))+'/HM.txt','w')
+        filePDF.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         filePDF.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
         filePDF.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
         filePDF.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
@@ -610,7 +597,7 @@ class QUakeMD():
             self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
             self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
             self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
-            self.writeOnLogFile('NumEvt:' + str(Param_Evt['EVID']))
+            self.writeOnLogFile('NumEvt:' + str(evt.evid))
             self.writeOnLogFile(str(empe))
             self.writeOnLogFile(str(Param_Evt))
             not_plot = True
@@ -634,14 +621,14 @@ class QUakeMD():
             cbar.set_ticks([])
             plt.xlabel('Depth [km]')
             plt.ylabel('Magnitude')
-            plt.title(str(Param_Evt['EVID']))
+            plt.title(str(evt.evid))
 
-            plt.savefig(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HM.png')  
+            plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
             plt.show()
         
         # Enregistrement de la PDF HMIo
-        fileLaw = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HMIo.txt','w')
-        fileLaw.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+        fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/HMIo.txt','w')
+        fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
         fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
         fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
@@ -674,15 +661,15 @@ class QUakeMD():
         ax.set_xlabel('Depth [km]')
         ax.set_ylabel('Magnitude')
         ax.set_zlabel('Io')
-        plt.savefig(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HMIo.png') 
+        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HMIo.png') 
         plt.show()
         
         # Plot et sauvegarde de la PDF HIo 
         prof_plot = []
         io_plot = []
         poids_plot = []
-        fileLaw = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HIo.txt','w')
-        fileLaw.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+        fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/HIo.txt','w')
+        fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         fileLaw.write(', I0 from catalogue = '+ str(round(evt.Io_ini, 1)) +'\n')
         fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
         fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
@@ -726,8 +713,8 @@ class QUakeMD():
             cbar.set_ticks([])
             plt.xlabel('Depth [km]')
             plt.ylabel('Io')
-            plt.title(str(Param_Evt['EVID']))
-            plt.savefig(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HIo.png')  
+            plt.title(str(evt.evid))
+            plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HIo.png')  
             plt.show()
 
         if not os.path.isfile(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt'):
@@ -735,16 +722,13 @@ class QUakeMD():
             file_temp.write('EVID\tI0 cat.\tQI0\tIc\tMbary\tM16th\tM84th\tHbary\tH16th\tH84th\tI0bary\tI016th\tI084th\n')
             file_temp.close()
         with open(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt', 'a') as file_temp:
-            Param_Evt['Io_ini']
-            Param_Evt['Ic']
-            evt.QI0name
             file_temp.write('%d\t%0.1f\t%s\t%0.1f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\n' 
-                            % (Param_Evt['EVID'], Param_Evt['Io_ini'], evt.QI0name, Param_Evt['Ic'],
+                            % (evt.evid, evt.Io_ini, evt.QI0name, evt.Ic,
                                  Barycentre_Mag, percentile16_mag, percentile84_mag,
                                  10**Barycentre_LogH, percentile16_prof, percentile84_prof,
                                  Barycentre_Io, percentile16_io, percentile84_io))
         
-        self.result_by_EMPE.to_csv(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/All_IPEs_classical_results.txt')
+        self.result_by_EMPE.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/All_IPEs_classical_results.txt')
         return self.result_by_EMPE
 
         

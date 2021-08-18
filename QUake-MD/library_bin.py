@@ -134,7 +134,7 @@ def RAVG(obsdata, depth, Ic, I0, QI0):
         Depi = 10**RAVG
         Hypo = np.sqrt(Depi**2+depth**2)
         obsbin.loc[compt, :] = [EVID, IAVG, Depi, Hypo, StdLogR, StdI, I0, QI0, Ndata]
-    return obsbin
+    return obsbin.astype(np.float64)
 
 def weighted_percentile(data, percents, weights=None):
     ''' percents in units of 1%
