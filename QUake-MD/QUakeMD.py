@@ -13,7 +13,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib as mpl
-import matplotlib.mlab as ml
+#import matplotlib.mlab as ml
+from scipy.interpolate import griddata
 import os.path
 import copy
 import sys
@@ -125,7 +126,7 @@ class QUakeMD():
         self.logfile.write(s + '\n')
         print(s)
         
-    def algorithm_QUakeMD(self, evt):                            
+    def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
         self.writeOnLogFile("Id of the event : " + str(evt.evid))
         self.writeOnLogFile("Minimal depth limit: " + str(self.depth_min_ref))
@@ -578,53 +579,59 @@ class QUakeMD():
         percentile84_mag = weight_percentile(mag_plot, poids_plot, 0.84)
 
         # Plot MH space of solutions
-        mag_lim_min = min(mag_plot)-0.5
-        mag_lim_max = max(mag_plot)+0.75
-        depth_min = 1
-        depth_max = 25
-        #Normalisation pour plot
-        poids_plot = poids_plot/max(poids_plot)
-        xi,yi = np.linspace(depth_min, depth_max, 100), np.linspace(mag_lim_min, mag_lim_max, 100)
-        xi,yi = np.meshgrid(xi, yi)
-        not_plot = True
-        try:
-            zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
-            not_plot = False
-        except RuntimeError:
-            self.writeOnLogFile('Magnitude too small for the plot:')
-            self.writeOnLogFile(str(Barycentre_Mag))
-            self.writeOnLogFile('Number of points for the grid:')
-            self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
-            self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
-            self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
-            self.writeOnLogFile('NumEvt:' + str(evt.evid))
-            self.writeOnLogFile(str(empe))
-            self.writeOnLogFile(str(Param_Evt))
-            not_plot = True
-            pass
-        except AttributeError:
-            not_plot = True
-            print("Mettre a jour pour la nouvelle version de matplotlib")
-            
-        # Plot de la PDF  HM
-        if not not_plot:
-            depth_min = 1
-            depth_max = 25 
-            plt.figure(figsize=(5,5))
-
-            plt.imshow(zi, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
-                              extent=[depth_min, depth_max, mag_lim_min, mag_lim_max], aspect='auto',
-                              interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
-            cbar = plt.colorbar()
-            cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
-                         color='White', weight='bold')
-            cbar.set_ticks([])
-            plt.xlabel('Depth [km]')
-            plt.ylabel('Magnitude')
-            plt.title(str(evt.evid))
-
-            plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
-            plt.show()
+        
+        self.plot_HM(evt, 1, 25,
+                     prof_plot, mag_plot, poids_plot,
+                     Barycentre_Mag, empe)
+             
+         
+#        mag_lim_min = min(mag_plot)-0.5
+#        mag_lim_max = max(mag_plot)+0.75
+#        depth_min = 1
+#        depth_max = 25
+#        #Normalisation pour plot
+#        poids_plot = poids_plot/max(poids_plot)
+#        xi,yi = np.linspace(depth_min, depth_max, 100), np.linspace(mag_lim_min, mag_lim_max, 100)
+#        xi,yi = np.meshgrid(xi, yi)
+#        not_plot = True
+#        try:
+#            zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
+#            not_plot = False
+#        except RuntimeError:
+#            self.writeOnLogFile('Magnitude too small for the plot:')
+#            self.writeOnLogFile(str(Barycentre_Mag))
+#            self.writeOnLogFile('Number of points for the grid:')
+#            self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
+#            self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
+#            self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
+#            self.writeOnLogFile('NumEvt:' + str(evt.evid))
+#            self.writeOnLogFile(str(empe))
+#            self.writeOnLogFile(str(Param_Evt))
+#            not_plot = True
+#            pass
+#        except AttributeError:
+#            not_plot = True
+#            print("Mettre a jour pour la nouvelle version de matplotlib")
+#            
+#        # Plot de la PDF  HM
+#        if not not_plot:
+#            depth_min = 1
+#            depth_max = 25 
+#            plt.figure(figsize=(5,5))
+#
+#            plt.imshow(zi, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
+#                              extent=[depth_min, depth_max, mag_lim_min, mag_lim_max], aspect='auto',
+#                              interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
+#            cbar = plt.colorbar()
+#            cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
+#                         color='White', weight='bold')
+#            cbar.set_ticks([])
+#            plt.xlabel('Depth [km]')
+#            plt.ylabel('Magnitude')
+#            plt.title(str(evt.evid))
+#
+#            plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
+#            plt.show()
         
         # Enregistrement de la PDF HMIo
         fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/HMIo.txt','w')
@@ -689,33 +696,8 @@ class QUakeMD():
         poids_plot = np.array(poids_plot)
         percentile16_io = weight_percentile(io_plot, poids_plot, 0.16)
         percentile84_io = weight_percentile(io_plot, poids_plot, 0.84)
-
-        if not not_plot:
-            # Figure PDF HIo
-            plt.figure(figsize=(5,5))
-            
-            poids_plot = np.array(poids_plot)   
-            #Normalisation
-            poids_plot = poids_plot/max(poids_plot)
-            max_io_lim =max( io_plot)+2
-            min_io_lim =min( io_plot)-2
-            xi,yi = np.linspace(1,depth_max,100),np.linspace(min_io_lim, max_io_lim, 100)
-            xi,yi = np.meshgrid(xi,yi)
-            zi = ml.griddata(prof_plot,io_plot,poids_plot,xi,yi,interp='linear')
-
-            plt.imshow(zi, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
-                              extent=[depth_min, depth_max, min_io_lim, max_io_lim], aspect='auto',
-                              interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
-            cbar = plt.colorbar()
-           
-            cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
-                         color='White', weight='bold')
-            cbar.set_ticks([])
-            plt.xlabel('Depth [km]')
-            plt.ylabel('Io')
-            plt.title(str(evt.evid))
-            plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HIo.png')  
-            plt.show()
+        
+        self.plot_HI0(evt, io_plot, prof_plot, poids_plot, 1, 25)
 
         if not os.path.isfile(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt'):
             file_temp = open(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt', 'w')
@@ -730,5 +712,90 @@ class QUakeMD():
         
         self.result_by_EMPE.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/All_IPEs_classical_results.txt')
         return self.result_by_EMPE
+    
+    def plot_HM(self, evt, depth_min, depth_max,
+                prof_plot, mag_plot, poids_plot,
+                Barycentre_Mag, empe):
+        
+        # Plot MH space of solutions
+        # Preparation des donnees pour le plot (gridding)
+        mag_lim_min = min(mag_plot)-0.5
+        mag_lim_max = max(mag_plot)+0.75
+        depth_min = 0.2
+        depth_max = 25
+        #Normalisation pour plot
+        poids_plot = poids_plot/max(poids_plot)
+        xi, yi = np.mgrid[depth_min:depth_max:100j, mag_lim_min:mag_lim_max:100j]
+        points_HM = []
+        for xx in range(len(prof_plot)):
+            points_HM.append([prof_plot[xx], mag_plot[xx]])
+        points_HM = np.array(points_HM)
 
+        try:
+            #zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
+            zi = griddata(points_HM, poids_plot, (xi, yi), method='linear')
+            not_plot = False
+        except RuntimeError:
+            self.writeOnLogFile('Magnitude too small for the plot:')
+            self.writeOnLogFile(str(Barycentre_Mag))
+            self.writeOnLogFile('Number of points for the grid:')
+            self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
+            self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
+            self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
+            self.writeOnLogFile('NumEvt:' + str(evt.evid))
+            self.writeOnLogFile(str(empe))
+            not_plot = True
+            return
+        except AttributeError:
+            not_plot = True
+            print("Mettre a jour pour la nouvelle version de matplotlib")
+            return
+           
+        plt.figure(figsize=(5,5))
+
+        plt.imshow(zi.T, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
+                   extent=[depth_min, depth_max, mag_lim_min, mag_lim_max], aspect='auto',
+                   interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
+        cbar = plt.colorbar()
+        cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
+                     color='White', weight='bold')
+        cbar.set_ticks([])
+        plt.xlabel('Depth [km]')
+        plt.ylabel('Magnitude')
+        plt.title(str(evt.evid))
+
+        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
+        plt.show()
+            
+    def plot_HI0(self, evt, io_plot, prof_plot, poids_plot,
+                 depth_min, depth_max):
+        # Figure PDF HIo
+        plt.figure(figsize=(5,5))
+        
+        poids_plot = np.array(poids_plot)   
+        #Normalisation
+        poids_plot = poids_plot/max(poids_plot)
+#        max_io_lim =max(io_plot)+2
+#        min_io_lim =min(io_plot)-2
+        
+        xi, yi = np.mgrid[depth_min:depth_max:100j, 2:12:100j]
+        points_HI0 = []
+        for xx in range(len(prof_plot)):
+            points_HI0.append([prof_plot[xx], io_plot[xx]])
+        points_HI0 = np.array(points_HI0)
+        zi = griddata(points_HI0, poids_plot, (xi, yi), method='linear')
+
+        plt.imshow(zi.T, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
+                  extent=[depth_min, depth_max, 2, 12], aspect='auto',
+                  interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
+        cbar = plt.colorbar()
+       
+        cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
+                     color='White', weight='bold')
+        cbar.set_ticks([])
+        plt.xlabel('Depth [km]')
+        plt.ylabel('Io')
+        plt.title(str(evt.evid))
+        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HIo.png')  
+        plt.show()
         

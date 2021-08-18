@@ -246,10 +246,14 @@ def ok4depthinv(ObsBin, mag, depth,
        test_inv_d = sum(g*Wdbin*dIwls)
        if -test_inv_d>0:
            test_inv = True
+       else:
+           test_inv = False
     elif (depth<=depth_min):
        test_inv_d = sum(g*Wdbin*dIwls) 
        if test_inv_d>0:
            test_inv = True
+       else:
+           test_inv = False
     else:
         test_inv= True
     return test_inv
@@ -264,13 +268,17 @@ def ok4I0inv(evt, ObsBin, mag, depth,
     g = np.ones(ndata)
     test_inv = False
     if (evt.Io_inv>=evt.Io_sup):
-           test_inv_d = sum(g*Wdbin*dIwls)
-           if -test_inv_d>0:
-               test_inv = True
+        test_inv_d = sum(g*Wdbin*dIwls)
+        if -test_inv_d>0:
+            test_inv = True
+        else:
+            test_inv = False
     elif (evt.Io_inv<=evt.Io_inf):
-           test_inv_d = sum(g*Wdbin*dIwls) 
-           if test_inv_d>0:
-               test_inv = True
+        test_inv_d = sum(g*Wdbin*dIwls) 
+        if test_inv_d>0:
+            test_inv = True
+        else:
+            test_inv = False
     else:
             test_inv = True
     return test_inv
