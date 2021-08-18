@@ -238,7 +238,18 @@ def RF50(obsdata, depth, Ic, I0, QI0):
     obsbin = obsbin[obsbin.W==obsbin.W.max()]
     obsbin = obsbin[['EVID', 'Iobs', 'Depi', 'Hypo', 'StdLogR', 'StdI', 'I0', 'QI0', 'Ndata']]
     obsbin.columns = ['EVID', 'I', 'Depi', 'Hypo', 'StdLogR', 'StdI', 'Io', 'Io_std', 'Ndata']
-    obsbin.loc[0, :] = [obsdata.EVID.values[0], I0, 0, depth, -1, QI0, I0, QI0, 0]
+    obsbin = obsbin.append({'EVID' : obsdata.EVID.values[0],
+                            'Depi' : 0,
+                            'Hypo': depth,
+                             'I': I0,
+                             'StdI': QI0,
+                             'Io': I0,
+                             'Io_std': QI0,
+                             'StdLogR': -1,
+                             'Ndata': 0}, 
+                                ignore_index=True)
+    
+    #obsbin.loc[0, :] = [obsdata.EVID.values[0], I0, 0, depth, -1, QI0, I0, QI0, 0]
     return obsbin
 
 def RF84(obsdata, depth, Ic, I0, QI0):
@@ -269,7 +280,17 @@ def RF84(obsdata, depth, Ic, I0, QI0):
     obsbin = obsbin[obsbin.W==obsbin.W.max()]
     obsbin = obsbin[['EVID', 'Iobs', 'Depi', 'Hypo', 'StdLogR', 'StdI', 'I0', 'QI0', 'Ndata']]
     obsbin.columns = ['EVID', 'I', 'Depi', 'Hypo', 'StdLogR', 'StdI', 'Io', 'Io_std', 'Ndata']
-    obsbin.loc[0, :] = [obsdata.EVID.values[0], I0, 0, depth, -1, QI0, I0, QI0, 0]
+    obsbin = obsbin.append({'EVID' : obsdata.EVID.values[0],
+                            'Depi' : 0,
+                            'Hypo': depth,
+                             'I': I0,
+                             'StdI': QI0,
+                             'Io': I0,
+                             'Io_std': QI0,
+                             'StdLogR': -1,
+                             'Ndata': 0}, 
+                                ignore_index=True)
+    #obsbin.loc[0, :] = [obsdata.EVID.values[0], I0, 0, depth, -1, QI0, I0, QI0, 0]
     return obsbin
     
 #def Binning_Obs(obsdata, depth, Ic, I0, QI0, evid):

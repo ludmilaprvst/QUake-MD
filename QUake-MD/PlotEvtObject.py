@@ -372,16 +372,17 @@ class PlotEvt():
 class FilesForPlot():
     def __init__(self, Evtname, Obsname, Parametername=""):
         try:
-            self.EvtFile = np.genfromtxt(Evtname, skip_header=1, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
-                                                          dtype=[('EVID', 'f8'), ('I0', 'f8'), ('QI0', 'U8'), ('Lon', 'f8'), 
-                                                                       ('Lat', 'f8'), ('QPos', 'S8'), ('Day', 'f8'), ('Month', 'f8'),
-                                                                       ('Year', 'f8')])
+            self.EvtFile = pd.read_csv(Evtname, sep=';')
+#            self.EvtFile = np.genfromtxt(Evtname, skip_header=1, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
+#                                                          dtype=[('EVID', 'f8'), ('I0', 'f8'), ('QI0', 'U8'), ('Lon', 'f8'), 
+#                                                                       ('Lat', 'f8'), ('QPos', 'S8'), ('Day', 'f8'), ('Month', 'f8'),
+#                                                                       ('Year', 'f8')])
         except:
             tkm.showerror('Error',"Problem with Event File")
-        self.EvtFile = pd.DataFrame(self.EvtFile)
+        #self.EvtFile = pd.DataFrame(self.EvtFile)
          
         try:
-            self.ObsFile = pd.read_csv(Obsname, sep=' ')
+            self.ObsFile = pd.read_csv(Obsname, sep=';')
         except:
             tkm.showerror("Error","Problem with Observation File")
         
@@ -393,8 +394,9 @@ class FilesForPlot():
         
         
 def searchByDate(EvtName, day, month, year):
-    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
-    EvtFile = pd.DataFrame(EvtFile)
+#    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
+#    EvtFile = pd.DataFrame(EvtFile)
+    EvtFile = pd.read_csv(EvtName, sep=';')
         
     # tests date correcte 
     if day < 0:
@@ -458,8 +460,9 @@ def searchByDate(EvtName, day, month, year):
 
 
 def searchByLoc(EvtName, lon, lat, rad):
-    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
-    EvtFile = pd.DataFrame(EvtFile)
+    EvtFile = pd.read_csv(EvtName, sep=';')
+#    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
+#    EvtFile = pd.DataFrame(EvtFile)
         
     #tests sur la latitude et la longitude
     print(CalcDist(lon,lat,EvtFile['Lon'],EvtFile['Lat']))
