@@ -34,6 +34,7 @@ print('Import of the tool module: success')
 import WLSIC
 print('Import of the least square module: success')
 
+Std ={'A':0.5,'B':0.5,'C':0.5,'E':0.750}
 
 class QUakeMD():
     """
@@ -42,7 +43,7 @@ class QUakeMD():
     Described in [ref biblio]
     """
     def __init__(self, evts, Evtname, Obsname, 
-                       listVarEq, listVarCoeff, Parametername="", Ic=False, output_folder=False,
+                       listVarEq, listVarCoeff, listeIbin, Parametername="", Ic=False, output_folder=False,
                        I0_option=True, imposed_depth=False, tag ='',
                        depth_min_ref=False, depth_max_ref=False,
                        LimitForSamplingInStd=2):
@@ -52,6 +53,7 @@ class QUakeMD():
             return
         self.listVarEq = listVarEq
         self.listVarCoeff = listVarCoeff
+        self.listeIbin = listeIbin
         self.Ic = Ic
         self.output_folder = output_folder
         # Create an outut folder if not given
@@ -151,11 +153,11 @@ class QUakeMD():
         poids_presents = 0 
         
         Param_Evt = {}
-        Param_Evt['EVID'] = evt.evid
-        Param_Evt['QI0'] = evt.QI0
-        Param_Evt['Io_ini'] = evt.Io_ini
-        Param_Evt['Io_inf'] = evt.Io_inf
-        Param_Evt['Io_sup'] = evt.Io_sup
+#        Param_Evt['EVID'] = evt.evid
+#        Param_Evt['QI0'] = evt.QI0
+#        Param_Evt['Io_ini'] = evt.Io_ini
+#        Param_Evt['Io_inf'] = evt.Io_inf
+#        Param_Evt['Io_sup'] = evt.Io_sup
         Param_Evt['Year'] = evt.year
         if self.Ic == False:
             Param_Evt['Ic'] = evt.Ic
@@ -178,6 +180,7 @@ class QUakeMD():
             gs = mpl.gridspec.GridSpec(2, 2, width_ratios=[1, 0.1],
                                    height_ratios=[1, 0.5])
             Poids_branche = self.listVarCoeff[index]
+            methode_bin = self.listeIbin[index]
             empe = self.listVarEq[index]
         
             # Creation of subplot of fig_intensity
@@ -187,39 +190,39 @@ class QUakeMD():
             axcb = fig_intensity.add_subplot(gs[1])
 
             # Initialization of Io and Ic
-            I0_ini = Param_Evt['Io_ini']
-            StdI0 = Param_Evt['QI0']
-            Param_Evt['Io_evt'] = I0_ini
+            I0_ini = evt.Io_ini
+            StdI0 = evt.QI0
+            Io_evt = I0_ini
             
-            Param_Evt['QI0_inv'] = StdI0
-            I0 = Param_Evt['Io_ini']
+            QI0_inv = StdI0
+            I0 = I0_ini
             
-            Param_Evt['Ic'] = Ic_ref
+            Ic = Ic_ref
             
-            self.writeOnLogFile('Ic = ' + str(Param_Evt['Ic']))
-            
-            
-            DataObs.loc[DataObs_ref['Iobs'] == 0, 'Iobs'] = 1
-            DataObs.loc[DataObs_ref['Iobs'] == 0, 'QIobs'] = 'C'
-            
-            DataObs = DataObs[DataObs['Iobs'] > 0]
-            DataObs.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
+            self.writeOnLogFile('Ic = ' + str(Ic))
             
             
-            I_value = 3  # doomy parameter
+            evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'Iobs'] = 1
+            evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'QIobs'] = 'C'
+            
+            evt.Obsevid = evt.Obsevid[evt.Obsevid['Iobs'] > 0]
+            evt.Obsevid.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
+
             
             inversion = 'BasedOnIobs'
                 
             # Update logfile
             self.writeOnLogFile('IPE: ' + str(empe))
             # Loading the IPE .txt files
+#            print(read_empe2(empe))
+#            print(empe)
             try:
                 beta_liste, c1_liste, c2_liste, poidsEMPE_liste, gamma_liste = read_empe2(empe)
             except:
                 self.writeOnLogFile('Error reading ' + str(empe))
-            
-            methode_bin = 'RAVG'
-            binning = ale.RAVG_c
+            # A modifier: attention, ça joue dans SearchBestStartDepth aussi.
+            #methode_bin = 'RAVG'
+            #binning = ale.RAVG_c
             
             # Initialization of variables
             nloi = 0
@@ -237,7 +240,7 @@ class QUakeMD():
             
             # Initialization of PDF
             PDF_HMLaw = np.zeros((self.PdfNClassH, self.PdfNClassM))
-            
+#            print(beta_liste)
             # Computing the gaussian space of solution for each IPE
             for Beta, C1, C2, gamma, w_empe in zip(beta_liste, c1_liste, c2_liste, gamma_liste, poidsEMPE_liste):
                 Singular = False
@@ -254,12 +257,17 @@ class QUakeMD():
                 
                 if inversion == 'BasedOnIobs':
                     # Initialization of the inverted parameters
-                    I0_ini = Param_Evt['Io_ini']
-                    Param_Evt['Io_evt'] = I0_ini
-                    start_depth, start_mag = SearchBestStartDepth(DataObs, Param_Evt, binning, 
+                    I0_ini = evt.Io_ini
+                    #evt.Io_inv = I0_ini
+                    evt.add_invMHI0_variables(QI0_inv, I0_ini, Ic)
+                    start_depth, start_mag = SearchBestStartDepth(evt, methode_bin,
                                                                   Beta, C1, C2, gamma,
-                                                                  self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test,
-                                                                  I_value, methode_bin)
+                                                                  self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
+#                    start_depth, start_mag =SearchBestStartDepth_old(ObsComplet, Param_Evt, Binning,
+#                                                                     beta, c1, c2, gamma,
+#                                                                     self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test,
+#                                                                     I_value, methode_bin)
+                    print(start_depth, start_mag)
                     if not start_depth:
                         Singular = True
                         start_depth = 10
@@ -271,12 +279,18 @@ class QUakeMD():
                     self.writeOnLogFile('Inversion: ' + str(inversion))
                     self.writeOnLogFile('I = ' + str(C1) + ' + ' + str(C2) + 'M ' + str(Beta) + 'log10(Dhypo) + ' + str(gamma) + 'Dhypo')
                     # Inversion of M and H (in Modules_QUakeMD)
-                    (mag, depth, I0, StdM_fin, StdH_fin, Param_Evt, ObsBin) = inversion_MHI0(Param_Evt['EVID'], DataObs, 
-                                                                                    methode_bin, binning, I_value,
-                                                                                    C1, C2, Beta, gamma,
-                                                                                    start_depth, start_mag, Param_Evt,
-                                                                                    self.depth_min_ref, self.depth_max_ref,
-                                                                                    self.imposed_depth, self.I0_option)
+#                    (mag, depth, I0, StdM_fin, StdH_fin, Param_Evt, ObsBin) = inversion_MHI0(Param_Evt['EVID'], DataObs, 
+#                                                                                    methode_bin, binning, I_value,
+#                                                                                    C1, C2, Beta, gamma,
+#                                                                                    start_depth, start_mag, Param_Evt,
+#                                                                                    self.depth_min_ref, self.depth_max_ref,
+#                                                                                    self.imposed_depth, self.I0_option)
+                    (mag, depth, I0, StdM_fin,
+                     StdH_fin, evt) = inversion_MHI0(evt, methode_bin, 
+                                                     C1, C2, Beta, gamma,
+                                                     start_depth, start_mag, 
+                                                     self.depth_min_ref, self.depth_max_ref,
+                                                     self.imposed_depth, self.I0_option)
                     try:
                         StdM_fin = StdM_fin[0]
                     except TypeError:
@@ -300,6 +314,9 @@ class QUakeMD():
                     couleur_depth = cmapcb(normcb(depth))
                     maxdepi = DataObs['Depi'].max()
                     
+                    evt.Binning_Obs(depth, evt.Ic, method_bin=methode_bin)
+                    ObsBin = evt.ObsBinn
+                    
                     titre_subplt = os.path.basename(empe)[:-4]
                     
                     axMH_IPE.plot(depth, mag, 'o', color = couleur_depth)
@@ -322,13 +339,23 @@ class QUakeMD():
                     ax.semilogx(0.1, I0, 's', color='Red')
 
                     if comptlaw == 1:
-                        ax.fill_between([0.1, 1000], Param_Evt['Io_inf'], Param_Evt['Io_sup'],
+                        ax.fill_between([0.1, 1000], evt.Io_inf, evt.Io_sup,
                                         color='PaleVioletRed', alpha=0.1)
                         ObsBin_save = copy.deepcopy(ObsBin)
-                        ObsBin_save.loc[20, 'I'] = Param_Evt['Io_ini']
-                        ObsBin_save.loc[:,'Depi'] = Depi_bin
-                        ObsBin_save = ObsBin_save[['EVID','Depi','I','Io','QIo','StdI','StdlogR','Ndata']]
-                        ObsBin_save.to_csv(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/IDP_binning.txt')
+                        StdI_0 = max([Std['A'], evt.QI0_inv])
+                        StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
+                        ObsBin = ObsBin.append({'EVID' : evt.evid,
+                                                'Depi' : 0,
+                                                'Hypo': depth,
+                                                'I': evt.Io_inv,
+                                                'StdI': StdI_0,
+                                                'Io': evt.Io_ini,
+                                                'Io_std': evt.QI0,
+                                                'StdLogR': 99,
+                                                'Ndata': 0}, 
+                             ignore_index=True)
+                        ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Io', 'Io_std', 'Ndata']]
+                        ObsBin_save.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/IDP_binning.txt')
 
                     ax.semilogx(Depi_pour_plot, Ipred, color=couleur_depth)
                     ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
@@ -337,7 +364,7 @@ class QUakeMD():
                     ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
                     ax.set_title(titre_subplt)
                     ax.set_xlim([1, maxdepi+100])
-                    ax.set_ylim([2, Param_Evt['Io_sup']+1])
+                    ax.set_ylim([2, evt.Io_sup+1])
                     ax.set_xlabel('Epicentral distance [km]', size=12)
                     ax.set_ylabel('Intensity', size=12)
                     axMH_IPE.set_xlabel('Depth [km]', size=12)
@@ -362,7 +389,7 @@ class QUakeMD():
                     if abs(depth - self.depth_min_ref) < 0.001:
                         StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
                     # Storage of the IPEs central values and associated sigmas
-                    self.result_by_EMPE.loc[self.index_result] = [Param_Evt['EVID'], C1, C2, Beta, gamma, mag,
+                    self.result_by_EMPE.loc[self.index_result] = [evt.evid, C1, C2, Beta, gamma, mag,
                                        StdM_fin, depth, StdH_fin, I0]
                     # I0 filtering of the gaussian space of solutions
                     dM = self.LimitForSamplingInStd * StdM_fin / float(self.NSamples)
@@ -572,7 +599,7 @@ class QUakeMD():
         poids_plot = poids_plot/max(poids_plot)
         xi,yi = np.linspace(depth_min, depth_max, 100), np.linspace(mag_lim_min, mag_lim_max, 100)
         xi,yi = np.meshgrid(xi, yi)
-
+        not_plot = True
         try:
             zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
             not_plot = False
@@ -588,6 +615,10 @@ class QUakeMD():
             self.writeOnLogFile(str(Param_Evt))
             not_plot = True
             pass
+        except AttributeError:
+            not_plot = True
+            print("Mettre a jour pour la nouvelle version de matplotlib")
+            
         # Plot de la PDF  HM
         if not not_plot:
             depth_min = 1
