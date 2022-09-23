@@ -8,7 +8,7 @@ Created on Thu Apr 25 14:44:20 2019
 
 import numpy as np
 import pandas as pd
-import library as libr
+import library_bin as libr
 from tkinter import messagebox as tkm
 try:
     from mpl_toolkits.basemap import pyproj
@@ -87,6 +87,7 @@ class PlotEvt():
         #voir pur maj Iinf Isup LImitforsampling
         self.Io_inf = self.Io_ini - 2*self.QI0
         self.Io_sup = self.Io_ini + 2*self.QI0
+        self.I0 = EvtFile[EvtFile['EVID']==self.evid]['I0'].values[0]
         """
         # Under development
         if hasattr(self.FfP, 'Parameterfile'):
@@ -118,10 +119,30 @@ class PlotEvt():
         ObsFile.loc[ObsFile['EVID']==self.evid,'Year'] = date
         
         self.Obsevid = ObsFile[ObsFile['EVID']==self.evid]
-        
+    
+    def Binning_Obs(self, depth, Ic, method_bin='ROBS'):
+        #print(self.Obsevid.head())
+        if method_bin == 'RAVG':
+            self.ObsBinn = libr.RAVG(self.Obsevid, depth, Ic, self.I0, self.QI0)
+        elif method_bin == 'ROBS':
+            self.ObsBinn = libr.ROBS(self.Obsevid, depth, Ic, self.I0, self.QI0)
+        elif method_bin == 'RP50':
+            self.ObsBinn = libr.RP50(self.Obsevid, depth, Ic, self.I0, self.QI0)
+        elif method_bin == 'RP84':
+            self.ObsBinn = libr.RP84(self.Obsevid, depth, Ic, self.I0, self.QI0)
+        elif method_bin == 'RF50':
+            self.ObsBinn = libr.RF50(self.Obsevid, depth, Ic, self.I0, self.QI0)
+        elif method_bin == 'RF84':
+            self.ObsBinn = libr.RF84(self.Obsevid, depth, Ic, self.I0, self.QI0)
+    
+    def add_invMHI0_variables(self, QI0_inv, Io_inv, Ic):
+        self.QI0_inv = QI0_inv
+        self.Io_inv = Io_inv
+        self.Ic = Ic
+    
     def deepCopy(self):
         evtcopy = PlotEvt(self.FfP)
-        print("Recréation d'evt success")
+        print(u"Recréation d'evt success")
         evtcopy.build(self.evid)
         print("build success")
         return evtcopy
@@ -308,14 +329,14 @@ class PlotEvt():
         self.fig.suptitle(SuperTitre,fontsize=12)
         
         
-    def Binning_Obs(self, depth, Ic):
+    def Binning_Obs_old(self, depth, Ic):
         Stdobs = {'A':0.5,'B':0.577,'C':0.710,'D':1.0,'I':1.5,'K':2.0}
         colonnes_binn = ['EVID','Hypo','I','Io','QIo','StdI','StdLogR','Ndata']
         Depi = []
         for epi in self.Obsevid['Depi'].values:
             Depi.append(epi)
         Depi = np.array(Depi)
-        Hypo = libr.Distance_c(depth,Depi)
+        Hypo = libr.Distance_c(depth, Depi)
 #        print("Hypo:")
 #        print(Hypo)
         IOBS = []
@@ -351,16 +372,17 @@ class PlotEvt():
 class FilesForPlot():
     def __init__(self, Evtname, Obsname, Parametername=""):
         try:
-            self.EvtFile = np.genfromtxt(Evtname, skip_header=1, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
-                                                          dtype=[('EVID', 'f8'), ('I0', 'f8'), ('QI0', 'U8'), ('Lon', 'f8'), 
-                                                                       ('Lat', 'f8'), ('QPos', 'S8'), ('Day', 'f8'), ('Month', 'f8'),
-                                                                       ('Year', 'f8')])
+            self.EvtFile = pd.read_csv(Evtname, sep=';')
+#            self.EvtFile = np.genfromtxt(Evtname, skip_header=1, usecols=(0, 1, 2, 3, 4, 5, 6, 7, 8),
+#                                                          dtype=[('EVID', 'f8'), ('I0', 'f8'), ('QI0', 'U8'), ('Lon', 'f8'), 
+#                                                                       ('Lat', 'f8'), ('QPos', 'S8'), ('Day', 'f8'), ('Month', 'f8'),
+#                                                                       ('Year', 'f8')])
         except:
             tkm.showerror('Error',"Problem with Event File")
-        self.EvtFile = pd.DataFrame(self.EvtFile)
+        #self.EvtFile = pd.DataFrame(self.EvtFile)
          
         try:
-            self.ObsFile = pd.read_csv(Obsname, sep=' ')
+            self.ObsFile = pd.read_csv(Obsname, sep=';')
         except:
             tkm.showerror("Error","Problem with Observation File")
         
@@ -372,8 +394,9 @@ class FilesForPlot():
         
         
 def searchByDate(EvtName, day, month, year):
-    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
-    EvtFile = pd.DataFrame(EvtFile)
+#    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
+#    EvtFile = pd.DataFrame(EvtFile)
+    EvtFile = pd.read_csv(EvtName, sep=';')
         
     # tests date correcte 
     if day < 0:
@@ -437,8 +460,9 @@ def searchByDate(EvtName, day, month, year):
 
 
 def searchByLoc(EvtName, lon, lat, rad):
-    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
-    EvtFile = pd.DataFrame(EvtFile)
+    EvtFile = pd.read_csv(EvtName, sep=';')
+#    EvtFile = np.genfromtxt(EvtName,skip_header=1,usecols=(0,1,2,3,4,5,6,7,8),dtype=[('EVID','f8'),('I0','f8'),('QI0','U8'),('Lon','f8'),('Lat','f8'),('QPos','S8'),('Day','f8'),('Month','f8'),('Year','f8')])
+#    EvtFile = pd.DataFrame(EvtFile)
         
     #tests sur la latitude et la longitude
     print(CalcDist(lon,lat,EvtFile['Lon'],EvtFile['Lat']))
@@ -535,4 +559,4 @@ def equi(m, centerlon, centerlat, radius, *args, **kwargs):
     
 _GEOD = pyproj.Geod(ellps='WGS84')
 def CalcDist(lon1,lat1,lon2,lat2):
-    return _GEOD.inv(lon1,lat1,lon2,lat2)[2]/1000.
+    return _GEOD.inv(lon1, lat1, lon2, lat2)[2]/1000.

@@ -1,0 +1,16 @@
+Output_folder: 2021-08-17
+Number of events: 1
+Event File: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/Data/Evt2016b.test.txt
+Observation File: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/Data/Obs2016b.test.txt
+
+
+Id of the event : 640001
+Minimal depth limit: 1
+Maximal depth limit: 25
+Sigma sampling :2
+Output folder for individual results created
+StdI_0 = 0.5
+Ic = 3
+IPE: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/IPEs_files/BA2018.txt
+Inversion: BasedOnIobs
+I = 3.297 + 1.306M -2.997log10(Dhypo) + 0.0Dhypo

@@ -117,10 +117,11 @@ def Binning_Obs(ObsComplet, Param_Evt, binning, depth, I0):
     #print ObsBinn
     return ObsBinn
 
-def SearchBestStartDepth(ObsComplet, Param_Evt, Binning,
+
+
+def SearchBestStartDepth(evt, method_bin, 
                          beta, c1, c2, gamma,
-                         depth_min, depth_max, nbre_prof_test,
-                         I_value, methode_bin):
+                         depth_min, depth_max, nbre_prof_test):
     """
     Search the start depth and magnitude for the depth and magnitude inversion
     
@@ -160,24 +161,36 @@ def SearchBestStartDepth(ObsComplet, Param_Evt, Binning,
     """
     nObsMin = 1
     
-    prof_testees = np.linspace(depth_min,depth_max,nbre_prof_test)
+    prof_testees = np.linspace(depth_min ,depth_max, nbre_prof_test)
     wrms_array = 1000*np.ones(len(prof_testees))
     magnitude = np.zeros(len(prof_testees))
-        
     EvtOk = False
-    for ii, depth in enumerate(prof_testees):        
-        depth = depth_min+float(ii)*(depth_max-depth_min)/float(nbre_prof_test-1)
-        StdI_0 = max([Std['A'],Param_Evt['QI0_inv']])
-        ObsBin = Binning_Obs(ObsComplet, Param_Evt, Binning, depth, Param_Evt['Io_ini'])
-        ObsBin.loc[20, :] = [Param_Evt['EVID'], depth, Param_Evt['Io_ini'], Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
+    for ii, depth in enumerate(prof_testees):
+#        print(depth)
+        #depth = depth_min+float(ii)*(depth_max-depth_min)/float(nbre_prof_test-1)
+        StdI_0 = max([Std['A'], evt.QI0])
+        evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
+        ObsBin = evt.ObsBinn
+        ObsBin = ObsBin.append({'EVID' : evt.evid,
+                                'Depi' : 0,
+                                'Hypo': depth,
+                                'I': evt.Io_ini,
+                                'StdI': StdI_0,
+                                'Io': evt.Io_ini,
+                                'Io_std': evt.QI0,
+                                'StdLogR': 99,
+                                'Ndata': 0}, 
+                                ignore_index=True)
         if ObsBin.shape[0]>nObsMin:
-            try:    
-    #                                (Cm,resultfortran) = wls(len(Data2inverse),1,Data2inverse,Cd,Wd,0,Cible)
-                resM = WLSIC.WLSIC_M(ObsBin, depth, 1, beta, gamma, c1, c2).do_wls_M()
-                Mag  = resM[0][0]
-                EvtOk = True
-            except:
-                    print('Singular')
+            Mag, StdM = WLSIC.WLSIC_oneEvt(ObsBin, depth, 1, beta, gamma, c1, c2).do_wls_M()
+#            #Mag  = resM[0][0]
+#            try:    
+#    #                                (Cm,resultfortran) = wls(len(Data2inverse),1,Data2inverse,Cd,Wd,0,Cible)
+#                resM = WLSIC.WLSIC_M(ObsBin, depth, 1, beta, gamma, c1, c2).do_wls_M()
+#                Mag  = resM[0][0]
+#                EvtOk = True
+#            except:
+#                    print('Singular')
             Dhypo = ObsBin['Hypo'].values
             Iobs = ObsBin['I'].values
             Wd = 1./ObsBin['StdI'].values
@@ -191,13 +204,15 @@ def SearchBestStartDepth(ObsComplet, Param_Evt, Binning,
         start_depth = prof_testees[index_minWRMS[0]]
         start_mag = magnitude[index_minWRMS[0]]
     if not EvtOk:
-        print('Evt ' + str(int(Param_Evt['EVID'])) + ':')
+        print('Evt ' + str(int(evt.evid)) + ':')
         print('Not enough data for the search of Best start depth')
         index_depth10 = np.where(prof_testees == 10)
         start_depth = prof_testees[index_depth10[0]]
         start_mag = magnitude[index_depth10[0]]
         return False,False
     return start_depth[0],start_mag[0]
+
+
 
 
 def weight_percentile(data, weight, percentile):
@@ -218,12 +233,61 @@ def weight_percentile(data, weight, percentile):
     y = np.interp(percentile, p, d)
     return y
 
+def ok4depthinv(ObsBin, mag, depth,
+                C1, C2, Beta, gamma,
+                depth_min, depth_max):
+    Ipred = C1 + C2*mag + Beta*np.log10(ObsBin['Hypo'].values)+gamma*ObsBin['Hypo'].values
+    dIwls = ObsBin['I'].values-Ipred
+    Hypo = ObsBin['Hypo'].values
+    g = (depth/Hypo)*(Beta/np.log(10)/Hypo+gamma)
+    Wdbin = 1./(ObsBin['StdI'].values**2)
+    Wdbin = Wdbin/Wdbin.sum()
+    if (depth>=depth_max):
+       test_inv_d = sum(g*Wdbin*dIwls)
+       if -test_inv_d>0:
+           test_inv = True
+       else:
+           test_inv = False
+    elif (depth<=depth_min):
+       test_inv_d = sum(g*Wdbin*dIwls) 
+       if test_inv_d>0:
+           test_inv = True
+       else:
+           test_inv = False
+    else:
+        test_inv= True
+    return test_inv
 
-def inversion_MHI0(NumEvt, DataObs, methode_bin, binning, I_value,
-                                 C1, C2, Beta, gamma,
-                                 start_depth, start_mag, Param_Evt,
-                                 depth_min, depth_max,
-                                 imposed_depth, I0_option):
+def ok4I0inv(evt, ObsBin, mag, depth,
+             C1, C2, Beta, gamma):
+    Wdbin = 1./(ObsBin['StdI'].values**2)
+    Wdbin = Wdbin/Wdbin.sum()
+    Ipred = evt.Io_inv + Beta * np.log10(ObsBin['Hypo'].values/depth) + gamma*(ObsBin['Hypo'].values-depth)
+    dIwls = ObsBin['I'].values-Ipred
+    ndata = len(dIwls)
+    g = np.ones(ndata)
+    test_inv = False
+    if (evt.Io_inv>=evt.Io_sup):
+        test_inv_d = sum(g*Wdbin*dIwls)
+        if -test_inv_d>0:
+            test_inv = True
+        else:
+            test_inv = False
+    elif (evt.Io_inv<=evt.Io_inf):
+        test_inv_d = sum(g*Wdbin*dIwls) 
+        if test_inv_d>0:
+            test_inv = True
+        else:
+            test_inv = False
+    else:
+            test_inv = True
+    return test_inv
+
+def inversion_MHI0(evt, method_bin,
+                   C1, C2, Beta, gamma,
+                   start_depth, start_mag,
+                   depth_min, depth_max,
+                   imposed_depth, I0_option):
     """
     Inverse magnitude and depth (and I0) based on IDPs and one IPE for one earthquake
     
@@ -274,7 +338,7 @@ def inversion_MHI0(NumEvt, DataObs, methode_bin, binning, I_value,
     # Initialization 
     depth = start_depth
     mag = start_mag
-    I0 = Param_Evt['Io_ini']
+    I0 = evt.Io_ini
 
     iteration = 0
     MaxIter = 100.
@@ -283,110 +347,101 @@ def inversion_MHI0(NumEvt, DataObs, methode_bin, binning, I_value,
     StdM_fin = 0
     StdI0_fin = 0
         
-    ObsBin = Binning_Obs(DataObs, Param_Evt, binning, depth, Param_Evt['Io_ini'])
-
+    evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
+    ObsBin = evt.ObsBinn
+    StdI_0 = max([Std['A'], evt.QI0_inv])
+    StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
+            
+    ObsBin = ObsBin.append({'EVID' : evt.evid,
+                            'Depi' : 0,
+                            'Hypo': depth,
+                            'I': evt.Io_inv,
+                            'StdI': StdI_0,
+                            'Io': evt.Io_ini,
+                            'Io_std': evt.QI0,
+                            'StdLogR': 99,
+                            'Ndata': 0}, 
+                             ignore_index=True)
     while iteration<MaxIter:
         print(iteration)
-        DistEpi = []
-        for disthypo in ObsBin['Hypo'].values:
-            if disthypo**2-depth**2<0:
-                DistEpi.append(0)
-            else:  
-                DistEpi.append(np.sqrt(disthypo**2-depth**2))
-        DistEpi = np.array(DistEpi)
         iteration+=1
         # Depth inversion
         if not imposed_depth:
             
             test_inv = False
-            StdI_0 = max([Std['A'], Param_Evt['QI0_inv']])
-            StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
-            ObsBin.loc[20, :] = [NumEvt, depth, I0, Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
-            Ipred = C1 + C2*mag + Beta*np.log10(ObsBin['Hypo'].values)+gamma*ObsBin['Hypo'].values
-            dIwls = ObsBin['I'].values-Ipred
-            Hypo = ObsBin['Hypo'].values
-            g = (depth/Hypo)*(Beta/np.log(10)/Hypo+gamma)
-            Wdbin = 1./(ObsBin['StdI'].values**2)
-            Wdbin = Wdbin/Wdbin.sum()
-            if (depth>=depth_max):
-               test_inv_d = sum(g*Wdbin*dIwls)
-               if -test_inv_d>0:
-                   test_inv = True
-            elif (depth<=depth_min):
-               test_inv_d = sum(g*Wdbin*dIwls) 
-               if test_inv_d>0:
-                   test_inv = True
-            else:
-                test_inv= True
+            #ObsBin.loc[20, :] = [NumEvt, depth, I0, Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
+            test_inv = ok4depthinv(ObsBin, mag, depth,
+                                   C1, C2, Beta, gamma,
+                                   depth_min, depth_max)
             if test_inv:
-                resH = WLSIC.WLSIC_M(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wlsic_depthM(depth_min, depth_max)
+                resH = WLSIC.WLSIC_oneEvt(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wlsic_depth(depth_min, depth_max)
                 depth = resH[0][0]
-
-                StdI_0 = max([Std['A'], Param_Evt['QI0_inv']])
-                ObsBin.loc[20, :] = [NumEvt, depth, Param_Evt['Io_ini'], Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
-
-                resH = WLSIC.WLSIC_M(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wlsic_depthM_std()
-                StdH_fin = np.sqrt(resH[1][0])
-
+                #StdI_0 = max([Std['A'], Param_Evt['QI0_inv']])
+                #resH = WLSIC.WLSIC_oneEvt(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wlsic_depthM_std()
+                StdH_fin = np.sqrt(np.diag(resH[1][0]))
             else:
                StdH_fin = 0.
                depth = depth
+            evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
+            ObsBin = evt.ObsBinn
+            ObsBin = ObsBin.append({'EVID' : evt.evid,
+                                    'Depi' : 0,
+                                    'Hypo': depth,
+                                    'I': evt.Io_inv,
+                                    'StdI': StdI_0,
+                                    'Io': evt.Io_ini,
+                                    'Io_std': evt.QI0,
+                                    'StdLogR': 99,
+                                    'Ndata': 0}, 
+                                    ignore_index=True)
         else:
             depth = imposed_depth
             StdH_fin = 1
         # I0 inversion
         if I0_option :         
-            ObsBin = Binning_Obs(DataObs,Param_Evt,binning,depth,Param_Evt['Io_ini'])
-
-            Wdbin = 1./(ObsBin['StdI'].values**2)
-            Wdbin = Wdbin/Wdbin.sum()
-
-          
-            Ipred = I0 + Beta * np.log10(ObsBin['Hypo'].values/depth) + gamma*(ObsBin['Hypo'].values-depth)
-            dIwls = ObsBin['I'].values-Ipred
-            ndata = len(dIwls)
-            g = np.ones(ndata)
-            test_inv = False
-            if (I0>=Param_Evt['Io_sup']):
-                   test_inv_d = sum(g*Wdbin*dIwls)
-                   if -test_inv_d>0:
-                       test_inv = True
-            elif (I0<=Param_Evt['Io_inf']):
-                   test_inv_d = sum(g*Wdbin*dIwls) 
-                   if test_inv_d>0:
-                       test_inv = True
-            else:
-                    test_inv= True
+            test_inv = ok4I0inv(evt, ObsBin, mag, depth,
+                                C1, C2, Beta, gamma)
             if test_inv:
-                resI0 = WLSIC.WLSIC(ObsBin, depth, Beta, gamma, I0).do_wlsic_I0(Param_Evt['Io_inf'], Param_Evt['Io_sup'])
+                resI0 = WLSIC.WLSIC_Kov_oneEvt(ObsBin, depth, Beta, gamma, I0).do_wlsic_I0(evt.Io_inf, evt.Io_sup)
                 I0 = resI0[0][0]
                 StdI0_fin = np.sqrt(resI0[1][0])
-                Param_Evt['QI0_inv'] = StdI0_fin
+                evt.QI0_inv = StdI0_fin
             else:
                 I0 = I0
-                Param_Evt['Io_evt'] = I0
+                evt.Io_inv = I0
                 StdI0_fin = 0.5
-                Param_Evt['QI0_inv'] = StdI0_fin
+                evt.QI0_inv = StdI0_fin
+            
+        
+#            ObsBin = ObsBin.append({'EVID' : evt.evid,
+#                                    'Depi' : 0,
+#                                    'Hypo': depth,
+#                                    'I': evt.Io_inv,
+#                                    'StdI': StdI_0,
+#                                    'Io': evt.Io_ini,
+#                                    'Io_std': evt.QI0,
+#                                    'StdLogR': 99,
+#                                    'Ndata': 0}, 
+#                                    ignore_index=True)
         else:
-            I0 = Param_Evt['Io_ini']
-            Param_Evt['Io_evt'] = I0
+            I0 = evt.Io_ini
+            evt.Io_inv = I0
             StdI0_fin = 0.5
-            Param_Evt['QI0_inv'] = StdI0_fin
+            evt.QI0_inv = StdI0_fin
 
         # Magnitude inversion
-        StdI_0 = max([Std['A'],Param_Evt['QI0_inv']])
+        StdI_0 = max([Std['A'], evt.QI0_inv])
         StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
-        ObsBin = Binning_Obs(DataObs, Param_Evt, binning, depth, Param_Evt['Io_ini'])
-
-        ObsBin.loc[20, :] = [NumEvt, depth, I0, Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
-        #ObsBin.loc[20, :] = [NumEvt, depth, Param_Evt['Io_ini'], Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
+        ObsBin.loc[ObsBin.Ndata==0, 'StdI'] = StdI_0
+        ObsBin.loc[ObsBin.Ndata==0, 'I'] = evt.Io_inv
         try:    
-            resM = WLSIC.WLSIC_M(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wls_M()
+            resM = WLSIC.WLSIC_oneEvt(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wls_M()
             mag  = resM[0][0]
-            StdI_0 = max([Std['A'], Param_Evt['QI0_inv']])
-            ObsBin.loc[20, :] = [NumEvt, depth, I0, Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
-            resM = WLSIC.WLSIC_M(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wls_M_std()
-            StdM_fin = np.sqrt(resM[1][0])
+#            StdI_0 = max([Std['A'], Param_Evt['QI0_inv']])
+#            ObsBin.loc[20, :] = [NumEvt, depth, I0, Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
+#            resM = WLSIC.WLSIC_M(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wls_M_std()
+#            StdM_fin = np.sqrt(resM[1][0])
+            StdM_fin = np.sqrt(np.diag(resM[1][0]))
         except:
                 print('Singular')
                 Singular=True
@@ -423,5 +478,4 @@ def inversion_MHI0(NumEvt, DataObs, methode_bin, binning, I_value,
             ConvrateMag = ConvrateMag/NbreMinIter
             if (ConvrateDepth<=0.05)and(ConvrateI0<=0.01)and(ConvrateMag<=0.01):                             
                 break
-        return mag, depth, I0, StdM_fin, StdH_fin, Param_Evt, ObsBin
-
+        return mag, depth, I0, StdM_fin, StdH_fin, evt

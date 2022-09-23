@@ -1,0 +1,266 @@
+Output_folder: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/Outputs
+Number of events: 1
+Event File: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/Data/Evt.example.txt
+Observation File: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/Data/Obs.example.txt
+
+
+Id of the event : 650009
+Minimal depth limit: 1
+Maximal depth limit: 11
+Sigma sampling :2
+Output folder for individual results created
+StdI_0 = 0.5
+Ic = 5
+IPE: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/IPEs_files/BA2018_RAVG.txt
+Inversion: BasedOnIobs
+I = 3.297 + 1.306M -2.997log10(Dhypo) + 0.0Dhypo
+M = 6.49; H = 11.00; I0=9
+StdM = 0.12; StdH = 0.00
+I0 inversion, I0 predit
+8.65004664177664, 8.651489536174267
+Pourcent of solutions compatible with I0: 93.75%
+Inversion: BasedOnIobs
+I = 2.378 + 1.544M -3.078log10(Dhypo) + 0.0Dhypo
+M = 6.17; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.697954379442201, 8.697055619013565
+Pourcent of solutions compatible with I0: 90.75%
+Inversion: BasedOnIobs
+I = 3.237 + 1.387M -3.258log10(Dhypo) + -0.00121Dhypo
+M = 6.52; H = 11.00; I0=9
+StdM = 0.11; StdH = 0.00
+I0 inversion, I0 predit
+8.89725222957916, 8.867699716483942
+Pourcent of solutions compatible with I0: 76.25%
+Inversion: BasedOnIobs
+I = 2.188 + 1.574M -3.048log10(Dhypo) + -0.00411Dhypo
+M = 6.32; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.950011907260224, 8.915862777439063
+Pourcent of solutions compatible with I0: 74.0%
+Inversion: BasedOnIobs
+I = 3.052 + 1.285M -2.742log10(Dhypo) + -0.00167Dhypo
+M = 6.56; H = 11.00; I0=9
+StdM = 0.12; StdH = 0.00
+I0 inversion, I0 predit
+8.603195534376976, 8.603805092783372
+Pourcent of solutions compatible with I0: 97.25%
+Inversion: BasedOnIobs
+I = 1.789 + 1.613M -2.939log10(Dhypo) + 0.0Dhypo
+M = 6.13; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.616163649048696, 8.618861970684396
+Pourcent of solutions compatible with I0: 95.25%
+Inversion: BasedOnIobs
+I = 2.947 + 1.388M -3.058log10(Dhypo) + -0.00164Dhypo
+M = 6.51; H = 11.00; I0=9
+StdM = 0.11; StdH = 0.00
+I0 inversion, I0 predit
+8.78577024186853, 8.779848752868197
+Pourcent of solutions compatible with I0: 85.5%
+Inversion: BasedOnIobs
+I = 1.411 + 1.682M -2.948log10(Dhypo) + -0.00268Dhypo
+M = 6.22; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.783473369103767, 8.777606557556261
+Pourcent of solutions compatible with I0: 86.75%
+Inversion: BasedOnIobs
+I = 3.064 + 1.221M -2.478log10(Dhypo) + -0.0064Dhypo
+M = 6.81; H = 11.00; I0=9
+StdM = 0.13; StdH = 0.00
+I0 inversion, I0 predit
+8.731807718041761, 8.726530127292712
+Pourcent of solutions compatible with I0: 94.25%
+Inversion: BasedOnIobs
+I = 2.475 + 1.507M -2.978log10(Dhypo) + -0.00394Dhypo
+M = 6.33; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.897128137255352, 8.866736215825213
+Pourcent of solutions compatible with I0: 79.5%
+Inversion: BasedOnIobs
+I = 3.321 + 1.362M -3.225log10(Dhypo) + -0.00175Dhypo
+M = 6.56; H = 11.00; I0=9
+StdM = 0.12; StdH = 0.00
+I0 inversion, I0 predit
+8.912055996162142, 8.880101470219289
+Pourcent of solutions compatible with I0: 75.25%
+Inversion: BasedOnIobs
+I = 2.327 + 1.59M -3.243log10(Dhypo) + -0.00198Dhypo
+M = 6.27; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.938485606435513, 8.903416366562173
+Pourcent of solutions compatible with I0: 72.75%
+Inversion: BasedOnIobs
+I = 2.902 + 1.218M -2.348log10(Dhypo) + -0.00659Dhypo
+M = 6.80; H = 11.00; I0=9
+StdM = 0.13; StdH = 0.00
+I0 inversion, I0 predit
+8.670469948313754, 8.664294720664238
+Pourcent of solutions compatible with I0: 97.75%
+Inversion: BasedOnIobs
+I = 2.066 + 1.553M -2.861log10(Dhypo) + -0.00405Dhypo
+M = 6.29; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.830957818889395, 8.807226371122463
+Pourcent of solutions compatible with I0: 85.75%
+Inversion: BasedOnIobs
+I = 3.071 + 1.363M -3.052log10(Dhypo) + -0.00209Dhypo
+M = 6.55; H = 11.00; I0=9
+StdM = 0.12; StdH = 0.00
+I0 inversion, I0 predit
+8.807363427716174, 8.802278248648207
+Pourcent of solutions compatible with I0: 83.75%
+Inversion: BasedOnIobs
+I = 1.579 + 1.689M -3.116log10(Dhypo) + -0.00107Dhypo
+M = 6.19; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.785502920193514, 8.779790287535754
+Pourcent of solutions compatible with I0: 84.75%
+Barycenter of the group of IPE:
+M = 6.42; H = 9.29; I0 = 8.99
+Ic = 5
+IPE: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/IPEs_files/BA2018_ROBS.txt
+Inversion: BasedOnIobs
+I = 3.608 + 1.241M -3.039log10(Dhypo) + 0.0Dhypo
+M = 6.66; H = 11.00; I0=9
+StdM = 0.11; StdH = 0.00
+I0 inversion, I0 predit
+8.695871271575314, 8.704387564906831
+Pourcent of solutions compatible with I0: 92.0%
+Inversion: BasedOnIobs
+I = 2.649 + 1.502M -3.179log10(Dhypo) + 0.0Dhypo
+M = 6.29; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.784871663202521, 8.785808195218102
+Pourcent of solutions compatible with I0: 85.0%
+Inversion: BasedOnIobs
+I = 3.411 + 1.325M -3.225log10(Dhypo) + -0.00111Dhypo
+M = 6.67; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.906319208631007, 8.87806234933003
+Pourcent of solutions compatible with I0: 76.25%
+Inversion: BasedOnIobs
+I = 2.397 + 1.542M -3.157log10(Dhypo) + -0.00121Dhypo
+M = 6.32; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.866949268033865, 8.844416236603132
+Pourcent of solutions compatible with I0: 80.5%
+Inversion: BasedOnIobs
+I = 3.317 + 1.223M -2.754log10(Dhypo) + 0.0Dhypo
+M = 6.61; H = 11.00; I0=9
+StdM = 0.11; StdH = 0.00
+I0 inversion, I0 predit
+8.52561168731624, 8.538638424630314
+Pourcent of solutions compatible with I0: 99.5%
+Inversion: BasedOnIobs
+I = 2.025 + 1.575M -3.019log10(Dhypo) + 0.0Dhypo
+M = 6.23; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.683211273041868, 8.692756046290935
+Pourcent of solutions compatible with I0: 92.25%
+Inversion: BasedOnIobs
+I = 3.089 + 1.327M -2.996log10(Dhypo) + 0.0Dhypo
+M = 6.56; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.668740376362546, 8.679379799882655
+Pourcent of solutions compatible with I0: 93.5%
+Inversion: BasedOnIobs
+I = 1.589 + 1.656M -3.046log10(Dhypo) + 0.0Dhypo
+M = 6.21; H = 11.00; I0=9
+StdM = 0.08; StdH = 0.00
+I0 inversion, I0 predit
+8.700315531511684, 8.708458596422394
+Pourcent of solutions compatible with I0: 91.75%
+Inversion: BasedOnIobs
+I = 3.533 + 1.167M -2.681log10(Dhypo) + -0.00356Dhypo
+M = 6.86; H = 11.00; I0=9
+StdM = 0.12; StdH = 0.00
+I0 inversion, I0 predit
+8.705289453217963, 8.706260781872839
+Pourcent of solutions compatible with I0: 94.75%
+Inversion: BasedOnIobs
+I = 2.832 + 1.459M -3.123log10(Dhypo) + -0.00128Dhypo
+M = 6.35; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.848660972590404, 8.828773390353115
+Pourcent of solutions compatible with I0: 82.25%
+Inversion: BasedOnIobs
+I = 3.515 + 1.315M -3.263log10(Dhypo) + 0.0Dhypo
+M = 6.63; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.852066834826426, 8.834660573404864
+Pourcent of solutions compatible with I0: 79.25%
+Inversion: BasedOnIobs
+I = 2.524 + 1.567M -3.383log10(Dhypo) + 0.0Dhypo
+M = 6.32; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.935981195617723, 8.904449685100243
+Pourcent of solutions compatible with I0: 71.25%
+Inversion: BasedOnIobs
+I = 3.312 + 1.161M -2.494log10(Dhypo) + -0.00415Dhypo
+M = 6.86; H = 11.00; I0=9
+StdM = 0.12; StdH = 0.00
+I0 inversion, I0 predit
+8.628457827775769, 8.6323222811604
+Pourcent of solutions compatible with I0: 98.75%
+Inversion: BasedOnIobs
+I = 2.386 + 1.506M -2.978log10(Dhypo) + -0.00167Dhypo
+M = 6.31; H = 11.00; I0=9
+StdM = 0.09; StdH = 0.00
+I0 inversion, I0 predit
+8.767628380883783, 8.767458977599754
+Pourcent of solutions compatible with I0: 88.75%
+Inversion: BasedOnIobs
+I = 3.23 + 1.318M -3.065log10(Dhypo) + 0.0Dhypo
+M = 6.59; H = 11.00; I0=9
+StdM = 0.10; StdH = 0.00
+I0 inversion, I0 predit
+8.712404277769679, 8.719508539107496
+Pourcent of solutions compatible with I0: 90.75%
+Inversion: BasedOnIobs
+I = 1.748 + 1.672M -3.247log10(Dhypo) + 0.0Dhypo
+M = 6.26; H = 11.00; I0=9
+StdM = 0.08; StdH = 0.00
+I0 inversion, I0 predit
+8.827083379945298, 8.825355358512148
+Pourcent of solutions compatible with I0: 80.75%
+Barycenter of the group of IPE:
+M = 6.48; H = 9.28; I0 = 8.97
+Ic = 5
+IPE: C:/Users/PROVOST-LUD/Documents/git_local/QUake-MD/Examples/IPEs_files/BS2006.txt
+Inversion: BasedOnIobs
+I = 4.81 + 1.27M -3.87log10(Dhypo) + 0.0Dhypo
+M = 6.62; H = 11.00; I0=9
+StdM = 0.11; StdH = 0.00
+I0 inversion, I0 predit
+9.275028849340408, 9.187677163397307
+Pourcent of solutions compatible with I0: 37.0%
+Inversion: BasedOnIobs
+I = 4.66 + 1.27M -3.83log10(Dhypo) + 0.0Dhypo
+M = 6.69; H = 11.00; I0=9
+StdM = 0.11; StdH = 0.00
+I0 inversion, I0 predit
+9.24909625211532, 9.164414126165514
+Pourcent of solutions compatible with I0: 39.75%
+Barycenter of the group of IPE:
+M = 6.63; H = 10.07; I0 = 9.29
+Final barycenter :
+
+M=6.54;H=9.67;I0=9.13
+

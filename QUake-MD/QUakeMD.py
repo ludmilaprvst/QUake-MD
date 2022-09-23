@@ -13,7 +13,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib as mpl
-import matplotlib.mlab as ml
+#import matplotlib.mlab as ml
+from scipy.interpolate import griddata
 import os.path
 import copy
 import sys
@@ -34,6 +35,7 @@ print('Import of the tool module: success')
 import WLSIC
 print('Import of the least square module: success')
 
+Std ={'A':0.5,'B':0.5,'C':0.5,'E':0.750}
 
 class QUakeMD():
     """
@@ -42,7 +44,7 @@ class QUakeMD():
     Described in [ref biblio]
     """
     def __init__(self, evts, Evtname, Obsname, 
-                       listVarEq, listVarCoeff, Parametername="", Ic=False, output_folder=False,
+                       listVarEq, listVarCoeff, listeIbin, Parametername="", Ic=False, output_folder=False,
                        I0_option=True, imposed_depth=False, tag ='',
                        depth_min_ref=False, depth_max_ref=False,
                        LimitForSamplingInStd=2):
@@ -52,6 +54,7 @@ class QUakeMD():
             return
         self.listVarEq = listVarEq
         self.listVarCoeff = listVarCoeff
+        self.listeIbin = listeIbin
         self.Ic = Ic
         self.output_folder = output_folder
         # Create an outut folder if not given
@@ -111,7 +114,7 @@ class QUakeMD():
         
         # Initialization of python outputs (for future)
         self.index_result = 0
-        self.result_by_EMPE = pd.DataFrame(columns=['NumEvt','C1', 'C2', 'Beta',
+        self.result_by_EMPE = pd.DataFrame(columns=['NumEvt','Bin_method', 'C1', 'C2', 'Beta',
                                                'Gamma', 'Mag', 'StdM', 'H', 'StdH', 'Io'])
     
         while self.evts.qsize() > 0:
@@ -123,7 +126,7 @@ class QUakeMD():
         self.logfile.write(s + '\n')
         print(s)
         
-    def algorithm_QUakeMD(self, evt):                            
+    def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
         self.writeOnLogFile("Id of the event : " + str(evt.evid))
         self.writeOnLogFile("Minimal depth limit: " + str(self.depth_min_ref))
@@ -151,11 +154,6 @@ class QUakeMD():
         poids_presents = 0 
         
         Param_Evt = {}
-        Param_Evt['EVID'] = evt.evid
-        Param_Evt['QI0'] = evt.QI0
-        Param_Evt['Io_ini'] = evt.Io_ini
-        Param_Evt['Io_inf'] = evt.Io_inf
-        Param_Evt['Io_sup'] = evt.Io_sup
         Param_Evt['Year'] = evt.year
         if self.Ic == False:
             Param_Evt['Ic'] = evt.Ic
@@ -167,10 +165,17 @@ class QUakeMD():
             
         self.writeOnLogFile("StdI_0 = " + str(evt.QI0))
         
+        # Saving the different isoseismal
         DataObs = copy.deepcopy(evt.Obsevid)
         DataObs_ref = evt.Obsevid
         Ic_ref = Param_Evt['Ic']
-        
+        unique_metbin = np.unique(self.listeIbin)
+        for metbin in unique_metbin:
+            evt.Binning_Obs(1, Param_Evt['Ic'], method_bin=metbin)
+            ObsBin = evt.ObsBinn
+            ObsBin_save = copy.deepcopy(ObsBin)
+            ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
+            ObsBin_save.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/IDP_binning_' + metbin + '.txt')
         # Application of the different IPEs stored in .txt files (for loop on the .txt files)
         for index in range(len(self.listVarEq)):
             # Initialization of figure with results of inversion of intensity data
@@ -178,6 +183,7 @@ class QUakeMD():
             gs = mpl.gridspec.GridSpec(2, 2, width_ratios=[1, 0.1],
                                    height_ratios=[1, 0.5])
             Poids_branche = self.listVarCoeff[index]
+            methode_bin = self.listeIbin[index]
             empe = self.listVarEq[index]
         
             # Creation of subplot of fig_intensity
@@ -187,39 +193,39 @@ class QUakeMD():
             axcb = fig_intensity.add_subplot(gs[1])
 
             # Initialization of Io and Ic
-            I0_ini = Param_Evt['Io_ini']
-            StdI0 = Param_Evt['QI0']
-            Param_Evt['Io_evt'] = I0_ini
+            I0_ini = evt.Io_ini
+            StdI0 = evt.QI0
+            #Io_evt = I0_ini
             
-            Param_Evt['QI0_inv'] = StdI0
-            I0 = Param_Evt['Io_ini']
+            QI0_inv = StdI0
+            I0 = I0_ini
             
-            Param_Evt['Ic'] = Ic_ref
+            Ic = Ic_ref
             
-            self.writeOnLogFile('Ic = ' + str(Param_Evt['Ic']))
-            
-            
-            DataObs.loc[DataObs_ref['Iobs'] == 0, 'Iobs'] = 1
-            DataObs.loc[DataObs_ref['Iobs'] == 0, 'QIobs'] = 'C'
-            
-            DataObs = DataObs[DataObs['Iobs'] > 0]
-            DataObs.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
+            self.writeOnLogFile('Ic = ' + str(Ic))
             
             
-            I_value = 3  # doomy parameter
+            evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'Iobs'] = 1
+            evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'QIobs'] = 'C'
+            
+            evt.Obsevid = evt.Obsevid[evt.Obsevid['Iobs'] > 0]
+            evt.Obsevid.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
+
             
             inversion = 'BasedOnIobs'
                 
             # Update logfile
             self.writeOnLogFile('IPE: ' + str(empe))
             # Loading the IPE .txt files
+#            print(read_empe2(empe))
+#            print(empe)
             try:
                 beta_liste, c1_liste, c2_liste, poidsEMPE_liste, gamma_liste = read_empe2(empe)
             except:
                 self.writeOnLogFile('Error reading ' + str(empe))
-            
-            methode_bin = 'RAVG'
-            binning = ale.RAVG_c
+            # A modifier: attention, ça joue dans SearchBestStartDepth aussi.
+            #methode_bin = 'RAVG'
+            #binning = ale.RAVG_c
             
             # Initialization of variables
             nloi = 0
@@ -237,7 +243,7 @@ class QUakeMD():
             
             # Initialization of PDF
             PDF_HMLaw = np.zeros((self.PdfNClassH, self.PdfNClassM))
-            
+#            print(beta_liste)
             # Computing the gaussian space of solution for each IPE
             for Beta, C1, C2, gamma, w_empe in zip(beta_liste, c1_liste, c2_liste, gamma_liste, poidsEMPE_liste):
                 Singular = False
@@ -254,12 +260,13 @@ class QUakeMD():
                 
                 if inversion == 'BasedOnIobs':
                     # Initialization of the inverted parameters
-                    I0_ini = Param_Evt['Io_ini']
-                    Param_Evt['Io_evt'] = I0_ini
-                    start_depth, start_mag = SearchBestStartDepth(DataObs, Param_Evt, binning, 
+                    I0_ini = evt.Io_ini
+                    #evt.Io_inv = I0_ini
+                    evt.add_invMHI0_variables(QI0_inv, I0_ini, Ic)
+                    start_depth, start_mag = SearchBestStartDepth(evt, methode_bin,
                                                                   Beta, C1, C2, gamma,
-                                                                  self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test,
-                                                                  I_value, methode_bin)
+                                                                  self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
+                    print(start_depth, start_mag)
                     if not start_depth:
                         Singular = True
                         start_depth = 10
@@ -271,12 +278,18 @@ class QUakeMD():
                     self.writeOnLogFile('Inversion: ' + str(inversion))
                     self.writeOnLogFile('I = ' + str(C1) + ' + ' + str(C2) + 'M ' + str(Beta) + 'log10(Dhypo) + ' + str(gamma) + 'Dhypo')
                     # Inversion of M and H (in Modules_QUakeMD)
-                    (mag, depth, I0, StdM_fin, StdH_fin, Param_Evt, ObsBin) = inversion_MHI0(Param_Evt['EVID'], DataObs, 
-                                                                                    methode_bin, binning, I_value,
-                                                                                    C1, C2, Beta, gamma,
-                                                                                    start_depth, start_mag, Param_Evt,
-                                                                                    self.depth_min_ref, self.depth_max_ref,
-                                                                                    self.imposed_depth, self.I0_option)
+#                    (mag, depth, I0, StdM_fin, StdH_fin, Param_Evt, ObsBin) = inversion_MHI0(Param_Evt['EVID'], DataObs, 
+#                                                                                    methode_bin, binning, I_value,
+#                                                                                    C1, C2, Beta, gamma,
+#                                                                                    start_depth, start_mag, Param_Evt,
+#                                                                                    self.depth_min_ref, self.depth_max_ref,
+#                                                                                    self.imposed_depth, self.I0_option)
+                    (mag, depth, I0, StdM_fin,
+                     StdH_fin, evt) = inversion_MHI0(evt, methode_bin, 
+                                                     C1, C2, Beta, gamma,
+                                                     start_depth, start_mag, 
+                                                     self.depth_min_ref, self.depth_max_ref,
+                                                     self.imposed_depth, self.I0_option)
                     try:
                         StdM_fin = StdM_fin[0]
                     except TypeError:
@@ -300,6 +313,9 @@ class QUakeMD():
                     couleur_depth = cmapcb(normcb(depth))
                     maxdepi = DataObs['Depi'].max()
                     
+                    evt.Binning_Obs(depth, evt.Ic, method_bin=methode_bin)
+                    ObsBin = evt.ObsBinn
+                    
                     titre_subplt = os.path.basename(empe)[:-4]
                     
                     axMH_IPE.plot(depth, mag, 'o', color = couleur_depth)
@@ -322,13 +338,8 @@ class QUakeMD():
                     ax.semilogx(0.1, I0, 's', color='Red')
 
                     if comptlaw == 1:
-                        ax.fill_between([0.1, 1000], Param_Evt['Io_inf'], Param_Evt['Io_sup'],
+                        ax.fill_between([0.1, 1000], evt.Io_inf, evt.Io_sup,
                                         color='PaleVioletRed', alpha=0.1)
-                        ObsBin_save = copy.deepcopy(ObsBin)
-                        ObsBin_save.loc[20, 'I'] = Param_Evt['Io_ini']
-                        ObsBin_save.loc[:,'Depi'] = Depi_bin
-                        ObsBin_save = ObsBin_save[['EVID','Depi','I','Io','QIo','StdI','StdlogR','Ndata']]
-                        ObsBin_save.to_csv(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/IDP_binning.txt')
 
                     ax.semilogx(Depi_pour_plot, Ipred, color=couleur_depth)
                     ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
@@ -337,7 +348,7 @@ class QUakeMD():
                     ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
                     ax.set_title(titre_subplt)
                     ax.set_xlim([1, maxdepi+100])
-                    ax.set_ylim([2, Param_Evt['Io_sup']+1])
+                    ax.set_ylim([2, evt.Io_sup+1])
                     ax.set_xlabel('Epicentral distance [km]', size=12)
                     ax.set_ylabel('Intensity', size=12)
                     axMH_IPE.set_xlabel('Depth [km]', size=12)
@@ -362,7 +373,7 @@ class QUakeMD():
                     if abs(depth - self.depth_min_ref) < 0.001:
                         StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
                     # Storage of the IPEs central values and associated sigmas
-                    self.result_by_EMPE.loc[self.index_result] = [Param_Evt['EVID'], C1, C2, Beta, gamma, mag,
+                    self.result_by_EMPE.loc[self.index_result] = [evt.evid, methode_bin, C1, C2, Beta, gamma, mag,
                                        StdM_fin, depth, StdH_fin, I0]
                     # I0 filtering of the gaussian space of solutions
                     dM = self.LimitForSamplingInStd * StdM_fin / float(self.NSamples)
@@ -391,7 +402,7 @@ class QUakeMD():
                                     Hm = self.depth_min_ref
 
                                 Io_test = C1 + C2 * Mm + Beta * np.log10(Hm) + gamma * Hm
-                                if (Io_test >= Param_Evt['Io_inf']) and (Io_test <= Param_Evt['Io_sup']):
+                                if (Io_test >= evt.Io_inf) and (Io_test <= evt.Io_sup):
                                     Triplets['Magnitude'].append(float(Mm))
                                     Triplets['Profondeur'].append(float(Hm))
                                     Triplets['Io'].append(float(Io_test))
@@ -410,8 +421,12 @@ class QUakeMD():
                         
                     except ZeroDivisionError:
                         with open('No_start_depth'+ self.tag+'.txt','a') as no_startdepth:
-                            no_startdepth.write(str(Param_Evt['EVID']) + '\t' + empe + '\n')
+                            no_startdepth.write(str(evt.evid) + '\t' + empe + '\n')
                     except:
+#                        Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
+#                        print(self.depth_min_ref, depth)
+#                        print(mag, self.LimitForSamplingInStd * StdM_fin)
+#                        print(self.NSamples)
                         print('unknown error in solutions space constitution')
                                  
 #%%
@@ -477,7 +492,7 @@ class QUakeMD():
                 # MAJ du logfile
                 self.writeOnLogFile('Barycenter of the group of IPE:')
                 self.writeOnLogFile('M = %.2f; H = %.2f; I0 = %.2f' % (Barycentre_MagLaw, 10**Barycentre_LogHLaw, Barycentre_IoLaw))
-                print (str(Param_Evt['Year']))
+                print (str(evt.year))
                 
                 # End of the control figure of the IPE fit to the intensity decrease
                 plt.tight_layout()      
@@ -485,11 +500,11 @@ class QUakeMD():
                 Ibin_plt, = ax.plot([], [], 'd', markerfacecolor='w', markeredgecolor='k', label='Binned intensity with RAVG method')
                 Iobs_plt, = ax.plot([], [], '.', color='Gray', label='Observed intensities')
                 ax.legend(handles=[Io_uncertainties, Ibin_plt, Iobs_plt])
-                fig_intensity.savefig(foldername+'/'+str(Param_Evt['EVID'])+'_fit_intensity_Law_'+str(index)+'.jpeg', dpi=100,
+                fig_intensity.savefig(foldername+'/'+str(evt.evid)+'_fit_intensity_Law_'+str(index)+'_'+ methode_bin+'.jpeg', dpi=100,
                                         bbox_inches='tight')
                 # Save the IPE's .txt group space of solutions
-                fileLaw = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/Law_'+str(index)+ '_HM.txt', 'w')
-                fileLaw.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+                fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/Law_'+str(index)+'_'+ methode_bin+ '_HM.txt', 'w')
+                fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
                 fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
                 fileLaw.write('Barycenter Io:' + str(round(Barycentre_IoLaw,2))+'\n')
                 fileLaw.write('Barycenter M:' + str(round(Barycentre_MagLaw,2))+'\n')
@@ -523,9 +538,9 @@ class QUakeMD():
             self.writeOnLogFile('No result compatible with I0 could be found')
             self.writeOnLogFile('Last solution computed:')
             self.writeOnLogFile(str(mag)+ ", "+str(depth)+ ", "+str(I0))
-            self.writeOnLogFile(str(Param_Evt['Io_inf'])+ ", "+str(Param_Evt['Io_sup']))
+            self.writeOnLogFile(str(evt.Io_inf)+ ", "+str(evt.Io_sup))
             with open('Noresult.txt', 'a') as no_result:
-                no_result.write(str(Param_Evt['EVID'])+'\t'+str(mag)+'\t'+str(depth)+'\t'+str(I0)+'\n')
+                no_result.write(str(evt.evid)+'\t'+str(mag)+'\t'+str(depth)+'\t'+str(I0)+'\n')
             return
         # MAJ du logfile
         self.writeOnLogFile('Final barycenter :\n')
@@ -533,8 +548,8 @@ class QUakeMD():
         # Finalisation et sauvegarde de la figure de controle des solutions avec les intensites
        
         # save space of solution in HM space
-        filePDF = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HM.txt','w')
-        filePDF.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+        filePDF = open(self.output_folder+'/'+str(int(evt.evid))+'/HM.txt','w')
+        filePDF.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         filePDF.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
         filePDF.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
         filePDF.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
@@ -564,53 +579,63 @@ class QUakeMD():
         percentile84_mag = weight_percentile(mag_plot, poids_plot, 0.84)
 
         # Plot MH space of solutions
-        mag_lim_min = min(mag_plot)-0.5
-        mag_lim_max = max(mag_plot)+0.75
-        depth_min = 1
-        depth_max = 25
-        #Normalisation pour plot
-        poids_plot = poids_plot/max(poids_plot)
-        xi,yi = np.linspace(depth_min, depth_max, 100), np.linspace(mag_lim_min, mag_lim_max, 100)
-        xi,yi = np.meshgrid(xi, yi)
-
-        try:
-            zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
-            not_plot = False
-        except RuntimeError:
-            self.writeOnLogFile('Magnitude too small for the plot:')
-            self.writeOnLogFile(str(Barycentre_Mag))
-            self.writeOnLogFile('Number of points for the grid:')
-            self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
-            self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
-            self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
-            self.writeOnLogFile('NumEvt:' + str(Param_Evt['EVID']))
-            self.writeOnLogFile(str(empe))
-            self.writeOnLogFile(str(Param_Evt))
-            not_plot = True
-            pass
-        # Plot de la PDF  HM
-        if not not_plot:
-            depth_min = 1
-            depth_max = 25 
-            plt.figure(figsize=(5,5))
-
-            plt.imshow(zi, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
-                              extent=[depth_min, depth_max, mag_lim_min, mag_lim_max], aspect='auto',
-                              interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
-            cbar = plt.colorbar()
-            cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
-                         color='White', weight='bold')
-            cbar.set_ticks([])
-            plt.xlabel('Depth [km]')
-            plt.ylabel('Magnitude')
-            plt.title(str(Param_Evt['EVID']))
-
-            plt.savefig(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HM.png')  
-            plt.show()
+        
+        self.plot_HM(evt, 1, 25,
+                     prof_plot, mag_plot, poids_plot,
+                     Barycentre_Mag, empe)
+             
+         
+#        mag_lim_min = min(mag_plot)-0.5
+#        mag_lim_max = max(mag_plot)+0.75
+#        depth_min = 1
+#        depth_max = 25
+#        #Normalisation pour plot
+#        poids_plot = poids_plot/max(poids_plot)
+#        xi,yi = np.linspace(depth_min, depth_max, 100), np.linspace(mag_lim_min, mag_lim_max, 100)
+#        xi,yi = np.meshgrid(xi, yi)
+#        not_plot = True
+#        try:
+#            zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
+#            not_plot = False
+#        except RuntimeError:
+#            self.writeOnLogFile('Magnitude too small for the plot:')
+#            self.writeOnLogFile(str(Barycentre_Mag))
+#            self.writeOnLogFile('Number of points for the grid:')
+#            self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
+#            self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
+#            self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
+#            self.writeOnLogFile('NumEvt:' + str(evt.evid))
+#            self.writeOnLogFile(str(empe))
+#            self.writeOnLogFile(str(Param_Evt))
+#            not_plot = True
+#            pass
+#        except AttributeError:
+#            not_plot = True
+#            print("Mettre a jour pour la nouvelle version de matplotlib")
+#            
+#        # Plot de la PDF  HM
+#        if not not_plot:
+#            depth_min = 1
+#            depth_max = 25 
+#            plt.figure(figsize=(5,5))
+#
+#            plt.imshow(zi, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
+#                              extent=[depth_min, depth_max, mag_lim_min, mag_lim_max], aspect='auto',
+#                              interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
+#            cbar = plt.colorbar()
+#            cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
+#                         color='White', weight='bold')
+#            cbar.set_ticks([])
+#            plt.xlabel('Depth [km]')
+#            plt.ylabel('Magnitude')
+#            plt.title(str(evt.evid))
+#
+#            plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
+#            plt.show()
         
         # Enregistrement de la PDF HMIo
-        fileLaw = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HMIo.txt','w')
-        fileLaw.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+        fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/HMIo.txt','w')
+        fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
         fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
         fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
@@ -643,15 +668,15 @@ class QUakeMD():
         ax.set_xlabel('Depth [km]')
         ax.set_ylabel('Magnitude')
         ax.set_zlabel('Io')
-        plt.savefig(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HMIo.png') 
+        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HMIo.png') 
         plt.show()
         
         # Plot et sauvegarde de la PDF HIo 
         prof_plot = []
         io_plot = []
         poids_plot = []
-        fileLaw = open(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HIo.txt','w')
-        fileLaw.write('NumEvt: '+ str(Param_Evt['EVID']) + ', year=' + str(int(Param_Evt['Year'])))
+        fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/HIo.txt','w')
+        fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         fileLaw.write(', I0 from catalogue = '+ str(round(evt.Io_ini, 1)) +'\n')
         fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
         fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
@@ -671,49 +696,106 @@ class QUakeMD():
         poids_plot = np.array(poids_plot)
         percentile16_io = weight_percentile(io_plot, poids_plot, 0.16)
         percentile84_io = weight_percentile(io_plot, poids_plot, 0.84)
-
-        if not not_plot:
-            # Figure PDF HIo
-            plt.figure(figsize=(5,5))
-            
-            poids_plot = np.array(poids_plot)   
-            #Normalisation
-            poids_plot = poids_plot/max(poids_plot)
-            max_io_lim =max( io_plot)+2
-            min_io_lim =min( io_plot)-2
-            xi,yi = np.linspace(1,depth_max,100),np.linspace(min_io_lim, max_io_lim, 100)
-            xi,yi = np.meshgrid(xi,yi)
-            zi = ml.griddata(prof_plot,io_plot,poids_plot,xi,yi,interp='linear')
-
-            plt.imshow(zi, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
-                              extent=[depth_min, depth_max, min_io_lim, max_io_lim], aspect='auto',
-                              interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
-            cbar = plt.colorbar()
-           
-            cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
-                         color='White', weight='bold')
-            cbar.set_ticks([])
-            plt.xlabel('Depth [km]')
-            plt.ylabel('Io')
-            plt.title(str(Param_Evt['EVID']))
-            plt.savefig(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/HIo.png')  
-            plt.show()
+        
+        self.plot_HI0(evt, io_plot, prof_plot, poids_plot, 1, 25)
 
         if not os.path.isfile(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt'):
             file_temp = open(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt', 'w')
             file_temp.write('EVID\tI0 cat.\tQI0\tIc\tMbary\tM16th\tM84th\tHbary\tH16th\tH84th\tI0bary\tI016th\tI084th\n')
             file_temp.close()
         with open(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt', 'a') as file_temp:
-            Param_Evt['Io_ini']
-            Param_Evt['Ic']
-            evt.QI0name
             file_temp.write('%d\t%0.1f\t%s\t%0.1f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\t%0.4f\n' 
-                            % (Param_Evt['EVID'], Param_Evt['Io_ini'], evt.QI0name, Param_Evt['Ic'],
+                            % (evt.evid, evt.Io_ini, evt.QI0name, evt.Ic,
                                  Barycentre_Mag, percentile16_mag, percentile84_mag,
                                  10**Barycentre_LogH, percentile16_prof, percentile84_prof,
                                  Barycentre_Io, percentile16_io, percentile84_io))
         
-        self.result_by_EMPE.to_csv(self.output_folder+'/'+str(int(Param_Evt['EVID']))+'/All_IPEs_classical_results.txt')
+        self.result_by_EMPE.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/All_IPEs_classical_results.txt')
         return self.result_by_EMPE
+    
+    def plot_HM(self, evt, depth_min, depth_max,
+                prof_plot, mag_plot, poids_plot,
+                Barycentre_Mag, empe):
+        
+        # Plot MH space of solutions
+        # Preparation des donnees pour le plot (gridding)
+        mag_lim_min = min(mag_plot)-0.5
+        mag_lim_max = max(mag_plot)+0.75
+        depth_min = 0.2
+        depth_max = 25
+        #Normalisation pour plot
+        poids_plot = poids_plot/max(poids_plot)
+        xi, yi = np.mgrid[depth_min:depth_max:100j, mag_lim_min:mag_lim_max:100j]
+        points_HM = []
+        for xx in range(len(prof_plot)):
+            points_HM.append([prof_plot[xx], mag_plot[xx]])
+        points_HM = np.array(points_HM)
 
+        try:
+            #zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
+            zi = griddata(points_HM, poids_plot, (xi, yi), method='linear')
+            not_plot = False
+        except RuntimeError:
+            self.writeOnLogFile('Magnitude too small for the plot:')
+            self.writeOnLogFile(str(Barycentre_Mag))
+            self.writeOnLogFile('Number of points for the grid:')
+            self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
+            self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
+            self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
+            self.writeOnLogFile('NumEvt:' + str(evt.evid))
+            self.writeOnLogFile(str(empe))
+            not_plot = True
+            return
+        except AttributeError:
+            not_plot = True
+            print("Mettre a jour pour la nouvelle version de matplotlib")
+            return
+           
+        plt.figure(figsize=(5,5))
+
+        plt.imshow(zi.T, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
+                   extent=[depth_min, depth_max, mag_lim_min, mag_lim_max], aspect='auto',
+                   interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
+        cbar = plt.colorbar()
+        cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
+                     color='White', weight='bold')
+        cbar.set_ticks([])
+        plt.xlabel('Depth [km]')
+        plt.ylabel('Magnitude')
+        plt.title(str(evt.evid))
+
+        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
+        plt.show()
+            
+    def plot_HI0(self, evt, io_plot, prof_plot, poids_plot,
+                 depth_min, depth_max):
+        # Figure PDF HIo
+        plt.figure(figsize=(5,5))
+        
+        poids_plot = np.array(poids_plot)   
+        #Normalisation
+        poids_plot = poids_plot/max(poids_plot)
+#        max_io_lim =max(io_plot)+2
+#        min_io_lim =min(io_plot)-2
+        
+        xi, yi = np.mgrid[depth_min:depth_max:100j, 2:12:100j]
+        points_HI0 = []
+        for xx in range(len(prof_plot)):
+            points_HI0.append([prof_plot[xx], io_plot[xx]])
+        points_HI0 = np.array(points_HI0)
+        zi = griddata(points_HI0, poids_plot, (xi, yi), method='linear')
+
+        plt.imshow(zi.T, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
+                  extent=[depth_min, depth_max, 2, 12], aspect='auto',
+                  interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
+        cbar = plt.colorbar()
+       
+        cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
+                     color='White', weight='bold')
+        cbar.set_ticks([])
+        plt.xlabel('Depth [km]')
+        plt.ylabel('Io')
+        plt.title(str(evt.evid))
+        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HIo.png')  
+        plt.show()
         

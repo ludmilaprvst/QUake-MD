@@ -77,12 +77,14 @@ class QUakeMdInterface(tk.Toplevel):
         
         self.labelEqFile = tk.Label(self, text="Select the files with the equation", bg='white')
         self.labelCoeff = tk.Label(self, text="Select the rating of each file", bg='white')
+        self.labelIbin = tk.Label(self, text="Intensity bin. strategy", bg='white')
         
         self.listeVariableEq = []
         self.listeVariableCoeff = []
         self.listeEntryEq = []
         self.listeEntryCoeff = []
         self.listeBrowse = []
+        self.liste_binning = []
         
         self.buttonAdd = tk.Button(self, text="Add", command=self.addLineEq, state='disabled')
         self.buttonDelete = tk.Button(self, text="Delete", command=self.deleteLineEq, state='disabled')
@@ -141,8 +143,9 @@ class QUakeMdInterface(tk.Toplevel):
         self.canvas.create_window(230, 560, window=self.entryDirectory, anchor='ne')
         self.canvas.create_window(240, 556, window=self.buttonDirectory, anchor='nw')
         
-        self.canvas.create_window(620, 20, window=self.labelEqFile, anchor='n')
-        self.canvas.create_window(900, 20, window=self.labelCoeff, anchor='n')
+        self.canvas.create_window(550, 20, window=self.labelEqFile, anchor='n')
+        self.canvas.create_window(920, 20, window=self.labelCoeff, anchor='n')
+        self.canvas.create_window(750, 20, window=self.labelIbin, anchor='n')
         
         self.canvas.create_window(900, 56, window=self.buttonAdd, anchor='n')
         self.canvas.create_window(820, 56, window=self.buttonDelete, anchor='n')
@@ -297,6 +300,7 @@ class QUakeMdInterface(tk.Toplevel):
         self.variableDirectory.set(directory)
         
     def addLineEq(self):
+        liste_Ibin = ['RAVG', 'ROBS', 'RP50', 'RP84', 'RF50', 'RF84']
         if not (len(self.listeVariableEq) == len(self.listeVariableCoeff) and 
             len(self.listeVariableCoeff) == len(self.listeEntryCoeff) and
             len(self.listeEntryCoeff) == len(self.listeEntryEq) and
@@ -306,8 +310,12 @@ class QUakeMdInterface(tk.Toplevel):
         index = len(self.listeVariableEq)
         variableEq = tk.StringVar()
         variableCoeff = tk.DoubleVar()
-        entryEq = tk.Entry(self, textvariable=variableEq, width=20)
+        variableIbinchoice = tk.StringVar()
+        entryEq = tk.Entry(self, textvariable=variableEq, width=22)
         entryCoeff = tk.Entry(self, textvariable=variableCoeff, width=10)
+        comboIbin = tk.ttk.Combobox(self, values=liste_Ibin, textvariable=variableIbinchoice,
+                                    state='readonly',
+                                    width=10)
         browse = tk.Button(self, text="Browse")
         
         self.listeVariableEq.append(variableEq)
@@ -315,14 +323,21 @@ class QUakeMdInterface(tk.Toplevel):
         self.listeEntryEq.append(entryEq)
         self.listeEntryCoeff.append(entryCoeff)
         self.listeBrowse.append(browse)
+        self.liste_binning.append(comboIbin)
         
         def onBrowseButtonClickAux(evt, i=index):
             return self.onBrowseButtonClick(evt, i)
         browse.bind('<Button-1>', onBrowseButtonClickAux)
         
         h = len(self.listeVariableEq) * 40 + 20
-        self.canvas.create_window(620, h, window=entryEq, anchor='n')
-        self.canvas.create_window(740, h - 4, window=browse, anchor='n')
+        """
+        self.canvas.create_window(550, 20, window=self.labelEqFile, anchor='n')
+        self.canvas.create_window(920, 20, window=self.labelCoeff, anchor='n')
+        self.canvas.create_window(750, 20, window=self.labelIbin, anchor='n')
+        """
+        self.canvas.create_window(550, h, window=entryEq, anchor='n')
+        self.canvas.create_window(650, h - 4, window=browse, anchor='n')
+        self.canvas.create_window(750, h - 4, window=comboIbin, anchor='n')
         self.canvas.create_window(900, h, window=entryCoeff, anchor='n')
         self.canvas.create_window(900, h + 36, window=self.buttonAdd, anchor='n')
         self.canvas.create_window(820, h + 36, window=self.buttonDelete, anchor='n')
@@ -347,8 +362,10 @@ class QUakeMdInterface(tk.Toplevel):
         self.listeEntryEq[lastindex].destroy()
         self.listeEntryCoeff[lastindex].destroy()
         self.listeBrowse[lastindex].destroy()
+        self.liste_binning[lastindex].destroy()
         
         self.listeVariableEq = self.listeVariableEq[:lastindex]
+        self.liste_binning = self.liste_binning[:lastindex]
         self.listeVariableCoeff = self.listeVariableCoeff[:lastindex]
         self.listeEntryEq = self.listeEntryEq[:lastindex]
         self.listeEntryCoeff = self.listeEntryCoeff[:lastindex]
@@ -421,18 +438,24 @@ class QUakeMdInterface(tk.Toplevel):
             listeEq.append(self.listeVariableEq[i].get())
             
         print(listeEq)
-            
+        
+        listeIbin = []
+        for i in range(len(self.liste_binning)):
+            listeIbin.append(self.liste_binning[i].get())
+        print(listeIbin)
         listeCoeff = []
         for i in range(len(self.listeVariableCoeff)):
             listeCoeff.append(self.listeVariableCoeff[i].get())
         
         print(listeCoeff)
+        
+        
         folder = self.variableDirectory.get()
         if folder == "":
             tkm.showerror("Error", "Need a folder")
-        
+        # Ajouter listeIbin
         thread = QUakeThread(queue, self.variableEvt.get(), self.variableObs.get(), 
-                     listeEq, listeCoeff, ic, 
+                     listeEq, listeCoeff, listeIbin, ic, 
                      folder, depthmin,
                      depthmax)
         
@@ -502,6 +525,7 @@ class QUakeMdInterface(tk.Toplevel):
         self.buttonDirectory.config(state='normal')
         
         self.listeEntryEq[0].config(state='normal')
+        self.liste_binning[0].config(state='normal')
         self.listeEntryCoeff[0].config(state='normal')
         self.listeBrowse[0].config(state='normal')
         self.buttonAdd.config(state='normal')
@@ -510,7 +534,7 @@ class QUakeMdInterface(tk.Toplevel):
         self.variableEvid.set(evid)
         
 class QUakeThread(th.Thread):
-    def __init__(self, queue, Evtname, Obsname,  listeEq, listeCoeff,
+    def __init__(self, queue, Evtname, Obsname,  listeEq, listeCoeff, listeIbin, 
                  ic, folder, depthmin, depthmax, Parametername=""):
         th.Thread.__init__(self)
         self.queue = queue
@@ -519,13 +543,15 @@ class QUakeThread(th.Thread):
         self.Parametername = Parametername
         self.listeEq = listeEq
         self.listeCoeff = listeCoeff
+        self.listeIbin = listeIbin
         self.ic = ic
         self.folder = folder
         self.depthmin = depthmin
         self.depthmax = depthmax
         
     def run(self):
-        qumd.QUakeMD(self.queue, self.Evtname, self.Obsname, self.listeEq, self.listeCoeff, Ic=self.ic, 
+        qumd.QUakeMD(self.queue, self.Evtname, self.Obsname, self.listeEq, self.listeCoeff, self.listeIbin,
+                     Ic=self.ic, 
                      output_folder=self.folder, depth_min_ref=self.depthmin,
                      depth_max_ref=self.depthmax, Parametername=self.Parametername)
         tkm.showinfo("QUake-MD","The calculus of the magnitude and the depth is over")
