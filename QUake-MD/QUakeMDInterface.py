@@ -189,7 +189,7 @@ class QUakeMdInterface(tk.Toplevel):
         
         self.entryEvid.config(state='normal')
         self.buttonNotAll.config(state='normal')
-        self.buttonAll.config(state='disabled')
+        self.buttonAll.config(state='normal')
         
         self.entryDepthMin.config(state='normal')
         self.buttonDepthMinYes.config(state='normal')
@@ -429,9 +429,13 @@ class QUakeMdInterface(tk.Toplevel):
                 evt = peo.PlotEvt(self.files)
                 evt.build(self.variableEvid.get())
                 queue.put(evt)
-        else:
-            tkm.showinfo("","All option not available")
-            return
+        elif config['state'][4] == 'readonly':
+            evt = peo.PlotEvt(self.files)
+            liste_evt = self.files.EvtFile['EVID'].values
+            for evt_id in liste_evt:
+                evt = peo.PlotEvt(self.files)
+                evt.build(evt_id)
+                queue.put(evt)
         
         listeEq = []
         for i in range(len(self.listeVariableEq)):
@@ -503,7 +507,7 @@ class QUakeMdInterface(tk.Toplevel):
         
         self.entryEvid.config(state='normal')
         self.buttonNotAll.config(state='normal')
-        self.buttonAll.config(state='disabled')
+        self.buttonAll.config(state='normal')
         
         self.entryDepthMin.config(state='normal')
         self.buttonDepthMinYes.config(state='normal')

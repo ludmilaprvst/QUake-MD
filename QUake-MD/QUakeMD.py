@@ -175,7 +175,7 @@ class QUakeMD():
             ObsBin = evt.ObsBinn
             ObsBin_save = copy.deepcopy(ObsBin)
             ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
-            ObsBin_save.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/IDP_binning_' + metbin + '.txt')
+            ObsBin_save.to_csv(self.output_folder+'/'+str(evt.evid)+'/IDP_binning_' + metbin + '.txt')
         # Application of the different IPEs stored in .txt files (for loop on the .txt files)
         for index in range(len(self.listVarEq)):
             # Initialization of figure with results of inversion of intensity data
@@ -503,7 +503,7 @@ class QUakeMD():
                 fig_intensity.savefig(foldername+'/'+str(evt.evid)+'_fit_intensity_Law_'+str(index)+'_'+ methode_bin+'.jpeg', dpi=100,
                                         bbox_inches='tight')
                 # Save the IPE's .txt group space of solutions
-                fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/Law_'+str(index)+'_'+ methode_bin+ '_HM.txt', 'w')
+                fileLaw = open(self.output_folder+'/'+str(evt.evid)+'/Law_'+str(index)+'_'+ methode_bin+ '_HM.txt', 'w')
                 fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
                 fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
                 fileLaw.write('Barycenter Io:' + str(round(Barycentre_IoLaw,2))+'\n')
@@ -548,7 +548,7 @@ class QUakeMD():
         # Finalisation et sauvegarde de la figure de controle des solutions avec les intensites
        
         # save space of solution in HM space
-        filePDF = open(self.output_folder+'/'+str(int(evt.evid))+'/HM.txt','w')
+        filePDF = open(self.output_folder+'/'+str(evt.evid)+'/HM.txt','w')
         filePDF.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         filePDF.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
         filePDF.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
@@ -583,58 +583,9 @@ class QUakeMD():
         self.plot_HM(evt, 1, 25,
                      prof_plot, mag_plot, poids_plot,
                      Barycentre_Mag, empe)
-             
-         
-#        mag_lim_min = min(mag_plot)-0.5
-#        mag_lim_max = max(mag_plot)+0.75
-#        depth_min = 1
-#        depth_max = 25
-#        #Normalisation pour plot
-#        poids_plot = poids_plot/max(poids_plot)
-#        xi,yi = np.linspace(depth_min, depth_max, 100), np.linspace(mag_lim_min, mag_lim_max, 100)
-#        xi,yi = np.meshgrid(xi, yi)
-#        not_plot = True
-#        try:
-#            zi = ml.griddata(prof_plot, mag_plot, poids_plot, xi, yi, interp='linear')
-#            not_plot = False
-#        except RuntimeError:
-#            self.writeOnLogFile('Magnitude too small for the plot:')
-#            self.writeOnLogFile(str(Barycentre_Mag))
-#            self.writeOnLogFile('Number of points for the grid:')
-#            self.writeOnLogFile(str(len(mag_plot))+ ", "+str(len(prof_plot)))
-#            self.writeOnLogFile(str(min(prof_plot))+ ", "+str(max(prof_plot))+ ", "+str(depth_min)+ ", "+str(depth_max))
-#            self.writeOnLogFile(str(min(mag_plot))+ ", "+str(max(mag_plot)))
-#            self.writeOnLogFile('NumEvt:' + str(evt.evid))
-#            self.writeOnLogFile(str(empe))
-#            self.writeOnLogFile(str(Param_Evt))
-#            not_plot = True
-#            pass
-#        except AttributeError:
-#            not_plot = True
-#            print("Mettre a jour pour la nouvelle version de matplotlib")
-#            
-#        # Plot de la PDF  HM
-#        if not not_plot:
-#            depth_min = 1
-#            depth_max = 25 
-#            plt.figure(figsize=(5,5))
-#
-#            plt.imshow(zi, vmin=poids_plot.min(), vmax=poids_plot.max(), origin='lower', 
-#                              extent=[depth_min, depth_max, mag_lim_min, mag_lim_max], aspect='auto',
-#                              interpolation='nearest', cmap=plt.cm.get_cmap('winter_r'))
-#            cbar = plt.colorbar()
-#            cbar.ax.text(.6, (2*1.5+1)/8., 'Increasing weight', ha='center', va='center', rotation=90,
-#                         color='White', weight='bold')
-#            cbar.set_ticks([])
-#            plt.xlabel('Depth [km]')
-#            plt.ylabel('Magnitude')
-#            plt.title(str(evt.evid))
-#
-#            plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
-#            plt.show()
         
         # Enregistrement de la PDF HMIo
-        fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/HMIo.txt','w')
+        fileLaw = open(self.output_folder+'/'+str(evt.evid)+'/HMIo.txt','w')
         fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
         fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
@@ -668,14 +619,14 @@ class QUakeMD():
         ax.set_xlabel('Depth [km]')
         ax.set_ylabel('Magnitude')
         ax.set_zlabel('Io')
-        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HMIo.png') 
+        plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HMIo.png') 
         plt.show()
         
         # Plot et sauvegarde de la PDF HIo 
         prof_plot = []
         io_plot = []
         poids_plot = []
-        fileLaw = open(self.output_folder+'/'+str(int(evt.evid))+'/HIo.txt','w')
+        fileLaw = open(self.output_folder+'/'+str(evt.evid)+'/HIo.txt','w')
         fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
         fileLaw.write(', I0 from catalogue = '+ str(round(evt.Io_ini, 1)) +'\n')
         fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
@@ -710,7 +661,7 @@ class QUakeMD():
                                  10**Barycentre_LogH, percentile16_prof, percentile84_prof,
                                  Barycentre_Io, percentile16_io, percentile84_io))
         
-        self.result_by_EMPE.to_csv(self.output_folder+'/'+str(int(evt.evid))+'/All_IPEs_classical_results.txt')
+        self.result_by_EMPE.to_csv(self.output_folder+'/'+str(evt.evid)+'/All_IPEs_classical_results.txt')
         return self.result_by_EMPE
     
     def plot_HM(self, evt, depth_min, depth_max,
@@ -764,7 +715,7 @@ class QUakeMD():
         plt.ylabel('Magnitude')
         plt.title(str(evt.evid))
 
-        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HM.png')  
+        plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HM.png')  
         plt.show()
             
     def plot_HI0(self, evt, io_plot, prof_plot, poids_plot,
@@ -796,6 +747,6 @@ class QUakeMD():
         plt.xlabel('Depth [km]')
         plt.ylabel('Io')
         plt.title(str(evt.evid))
-        plt.savefig(self.output_folder+'/'+str(int(evt.evid))+'/HIo.png')  
+        plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HIo.png')  
         plt.show()
         

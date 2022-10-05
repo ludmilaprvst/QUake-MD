@@ -43,9 +43,9 @@ class PlotEvt():
         if hasattr(self.FfP,'Parameter file'):
             ParameterFile = self.FfP.ParameterFile
         
-        if self.evid < 0 or not isinstance(self.evid,int):
-            tkm.showerror("Error", "Please enter an integer")
-            return
+        # if self.evid < 0 or not isinstance(self.evid,int):
+        #     tkm.showerror("Error", "Please enter an integer")
+        #     return
         
         if np.size(EvtFile[EvtFile['EVID']==self.evid].values) == 0 :
             print("L'evid " + str(self.evid) + " n'existe pas")
