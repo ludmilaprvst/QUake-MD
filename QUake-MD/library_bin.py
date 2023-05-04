@@ -18,7 +18,7 @@ def ROBS(obsdata, depth, Ic, I0, QI0):
     """
     Function that bins intensiy data points in intensity class for one earthquake.
     For each intensity class, the epicentral distance of the intensity data points
-    are meaned (geometric mean).
+    are meaned (on the log10 of the epicentral distance).
     Width of the intensity class : 0.
     Standard deviation associated to the intensity class is equal to the log. standard
     deviation of the meaned epicentral distances multiplied by the absolute value
@@ -80,7 +80,8 @@ def RAVG(obsdata, depth, Ic, I0, QI0):
     """
     Function that bins intensiy data points in intensity class for one earthquake.
     For each intensity class, the epicentral distance of the intensity data points
-    are meaned (geometric mean).
+    are meaned (on the log10 of the epicentral distance). Intensity within the intensity
+    class is also meaned. Both means are weighted mean.
     Width of the intensity class : 1.
     Standard deviation associated to the intensity class is equal to the log. standard
     deviation of the meaned epicentral distances multiplied by the absolute value
@@ -137,20 +138,77 @@ def RAVG(obsdata, depth, Ic, I0, QI0):
     return obsbin.astype(np.float64)
 
 def weighted_percentile(data, percents, weights=None):
-    ''' percents in units of 1%
-        weights specifies the frequency (count) of data.
-    '''
+    """
+    Compute the weighted percentile of data. To compute the value of 
+    the wished percentile, the function uses a piecewise linear function on the data
+    where  the knots are the values midway through the steps of the 
+    empirical data. This is popular amongst hydrologists. 
+
+    Parameters
+    ----------
+    data : array
+        values of the data.
+    percents : int
+        percentile in % wished.
+    weights : array, optional
+        weights associated to the data. Should have the same length as data. The default is None.
+
+    Returns
+    -------
+    float
+        The value of the data at the wished percentile
+
+    """
+
     if weights is None:
         return np.percentile(data, percents)
     ind = np.argsort(data)
-    d=data[ind]
-    w=weights[ind]
-    p=1.*w.cumsum()/w.sum()*100
-    y=np.interp(percents, p, d)
+    d = data[ind]
+    w = weights[ind]
+    w = w*len(w)/sum(w) #Normalized to len(w)
+    
+    k = w.cumsum()
+    pk = (k-w/2)/len(w)
+    new_pk = np.append(np.array([0]), pk)
+    new_pk = np.append(new_pk, np.array([1]))
+    new_data = np.append(np.array([d[0]]), d)
+    new_data = np.append(new_data, np.array([d[-1]]))
+    y = np.interp(percents/100, new_pk, new_data)
     return y
 
+
 def RP50(obsdata, depth, Ic, I0, QI0):
+    """
+    Function that bins intensiy data points in intensity class for one earthquake.
+    The epicentral distance associated to each intensity class is equal
+    to the weighted median of the log10 of the epicentral distance of the intensity data points.
     
+    Width of the intensity class : 0.
+    Standard deviation associated to the intensity class is equal to the log. standard
+    deviation of the meaned epicentral distances multiplied by the absolute value
+    of a geometric attenuation coefficient equal to -3.5.
+    
+    :param obsdata: dataframe with the following columns : Iobs, value of the
+                    intensity data point, Depi the associated epicentral intensity,
+                    QIobs the associated quality (A, B or C) and EVID the earthquake ID.
+    :param depth: hypocentral depth of the considered earthquake
+    :param Ic: intensity of completeness of the macroseismic field
+    :param I0: epicentral intensity of the earthquake
+    :param QI0: epicentral intensity quality translated in standard deviation
+    :type obsdata: pandas.DataFrame
+    :type depth: float
+    :type I0: float
+    :type QI0: float
+    
+    :return: a pandas.DataFrame with the binned intensity. The columns are:
+             'EVID'  the earthquake ID, 'I' the value of the binned intensity,
+             'Depi' the associated epicentral distance, 'Hypo' the associated
+             hypocentral distance, 'StdLogR' the log standard deviation of the
+             epicentral geometric mean, 'StdI' the standard deviation associated
+             to the binned intensity value, 'Io' the epicentral intensity,
+             'Io_std' the epicentral intensity standard deviation and 'Ndata' the
+             number of intensity data point used compute the intensity bin.
+    """
     obsdata = obsdata[obsdata.Iobs>=Ic]
     obsdata['Depi'].replace(0, 0.5, inplace=True)
     #print(obsdata.EVID.values[0])
@@ -181,7 +239,37 @@ def RP50(obsdata, depth, Ic, I0, QI0):
 
 
 def RP84(obsdata, depth, Ic, I0, QI0):
+    """
+    Function that bins intensiy data points in intensity class for one earthquake.
+    The epicentral distance associated to each intensity class is equal
+    to the weighted 84th percentile of the log10 of the epicentral distance of the intensity data points.
     
+    Width of the intensity class : 0.
+    Standard deviation associated to the intensity class is equal to the log. standard
+    deviation of the meaned epicentral distances multiplied by the absolute value
+    of a geometric attenuation coefficient equal to -3.5.
+    
+    :param obsdata: dataframe with the following columns : Iobs, value of the
+                    intensity data point, Depi the associated epicentral intensity,
+                    QIobs the associated quality (A, B or C) and EVID the earthquake ID.
+    :param depth: hypocentral depth of the considered earthquake
+    :param Ic: intensity of completeness of the macroseismic field
+    :param I0: epicentral intensity of the earthquake
+    :param QI0: epicentral intensity quality translated in standard deviation
+    :type obsdata: pandas.DataFrame
+    :type depth: float
+    :type I0: float
+    :type QI0: float
+    
+    :return: a pandas.DataFrame with the binned intensity. The columns are:
+             'EVID'  the earthquake ID, 'I' the value of the binned intensity,
+             'Depi' the associated epicentral distance, 'Hypo' the associated
+             hypocentral distance, 'StdLogR' the log standard deviation of the
+             epicentral geometric mean, 'StdI' the standard deviation associated
+             to the binned intensity value, 'Io' the epicentral intensity,
+             'Io_std' the epicentral intensity standard deviation and 'Ndata' the
+             number of intensity data point used compute the intensity bin.
+    """
     obsdata = obsdata[obsdata.Iobs>=Ic]
     obsdata['Depi'].replace(0, 0.5, inplace=True)
     #print(obsdata.EVID.values[0])
@@ -211,6 +299,39 @@ def RP84(obsdata, depth, Ic, I0, QI0):
     return obsbin
 
 def RF50(obsdata, depth, Ic, I0, QI0):
+    """
+    Function that bins intensiy data points in intensity class for one earthquake.
+    The epicentral distance associated to each intensity class is equal
+    to the weighted median of the log10 of the epicentral distance of the intensity data points.
+    Only one intensity class is kept and correspond to the most far and most reliable isoseismal of 
+    the considered earthquake (see Traversa et al 2017)
+    
+    Width of the intensity class : 0.
+    Standard deviation associated to the intensity class is equal to the log. standard
+    deviation of the meaned epicentral distances multiplied by the absolute value
+    of a geometric attenuation coefficient equal to -3.5.
+    
+    :param obsdata: dataframe with the following columns : Iobs, value of the
+                    intensity data point, Depi the associated epicentral intensity,
+                    QIobs the associated quality (A, B or C) and EVID the earthquake ID.
+    :param depth: hypocentral depth of the considered earthquake
+    :param Ic: intensity of completeness of the macroseismic field
+    :param I0: epicentral intensity of the earthquake
+    :param QI0: epicentral intensity quality translated in standard deviation
+    :type obsdata: pandas.DataFrame
+    :type depth: float
+    :type I0: float
+    :type QI0: float
+    
+    :return: a pandas.DataFrame with the binned intensity. The columns are:
+             'EVID'  the earthquake ID, 'I' the value of the binned intensity,
+             'Depi' the associated epicentral distance, 'Hypo' the associated
+             hypocentral distance, 'StdLogR' the log standard deviation of the
+             epicentral geometric mean, 'StdI' the standard deviation associated
+             to the binned intensity value, 'Io' the epicentral intensity,
+             'Io_std' the epicentral intensity standard deviation and 'Ndata' the
+             number of intensity data point used compute the intensity bin.
+    """
     obsdata = obsdata[obsdata.Iobs>=Ic]
     obsdata['Depi'].replace(0, 0.5, inplace=True)
     #print(obsdata.EVID.values[0])
@@ -253,6 +374,39 @@ def RF50(obsdata, depth, Ic, I0, QI0):
     return obsbin
 
 def RF84(obsdata, depth, Ic, I0, QI0):
+    """
+    Function that bins intensiy data points in intensity class for one earthquake.
+    The epicentral distance associated to each intensity class is equal
+    to the weighted 84th percentile of the log10 of the epicentral distance of the intensity data points.
+    Only one intensity class is kept and correspond to the most far and most reliable isoseismal of 
+    the considered earthquake (see Traversa et al 2017)
+    
+    Width of the intensity class : 0.
+    Standard deviation associated to the intensity class is equal to the log. standard
+    deviation of the meaned epicentral distances multiplied by the absolute value
+    of a geometric attenuation coefficient equal to -3.5.
+    
+    :param obsdata: dataframe with the following columns : Iobs, value of the
+                    intensity data point, Depi the associated epicentral intensity,
+                    QIobs the associated quality (A, B or C) and EVID the earthquake ID.
+    :param depth: hypocentral depth of the considered earthquake
+    :param Ic: intensity of completeness of the macroseismic field
+    :param I0: epicentral intensity of the earthquake
+    :param QI0: epicentral intensity quality translated in standard deviation
+    :type obsdata: pandas.DataFrame
+    :type depth: float
+    :type I0: float
+    :type QI0: float
+    
+    :return: a pandas.DataFrame with the binned intensity. The columns are:
+             'EVID'  the earthquake ID, 'I' the value of the binned intensity,
+             'Depi' the associated epicentral distance, 'Hypo' the associated
+             hypocentral distance, 'StdLogR' the log standard deviation of the
+             epicentral geometric mean, 'StdI' the standard deviation associated
+             to the binned intensity value, 'Io' the epicentral intensity,
+             'Io_std' the epicentral intensity standard deviation and 'Ndata' the
+             number of intensity data point used compute the intensity bin.
+    """
     obsdata = obsdata[obsdata.Iobs>=Ic]
     obsdata['Depi'].replace(0, 0.5, inplace=True)
     #print(obsdata.EVID.values[0])
