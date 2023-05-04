@@ -497,7 +497,7 @@ class QUakeMD():
                 # End of the control figure of the IPE fit to the intensity decrease
                 plt.tight_layout()      
                 Io_uncertainties = mpatches.Patch(color='PaleVioletRed', alpha=0.3, label='I0 uncertainties')
-                Ibin_plt, = ax.plot([], [], 'd', markerfacecolor='w', markeredgecolor='k', label='Binned intensity with RAVG method')
+                Ibin_plt, = ax.plot([], [], 'd', markerfacecolor='w', markeredgecolor='k', label='Binned intensity with'+ methode_bin +' method')
                 Iobs_plt, = ax.plot([], [], '.', color='Gray', label='Observed intensities')
                 ax.legend(handles=[Io_uncertainties, Ibin_plt, Iobs_plt])
                 fig_intensity.savefig(foldername+'/'+str(evt.evid)+'_fit_intensity_Law_'+str(index)+'_'+ methode_bin+'.jpeg', dpi=100,
