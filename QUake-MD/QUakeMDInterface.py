@@ -158,10 +158,12 @@ class QUakeMdInterface(tk.Toplevel):
     def onButtonEvtClick(self):
         filename = fd.askopenfilename(title="Choose the Event file", filetypes=[('txt files','.txt'),('all files','.*')])
         self.variableEvt.set(filename)
+        self.entryEvt.xview_moveto(1)
     
     def onButtonObsClick(self):
         filename = fd.askopenfilename(title="Choose the Observation file", filetypes=[('txt files','.txt'),('all files','.*')])
         self.variableObs.set(filename)
+        self.entryObs.xview_moveto(1)
         
 #    def onButtonCritiqueClick(self):
 #        filename = fd.askopenfilename(title="Choose the Ic/Dc file", filetypes=[('txt files','.txt'),('all files','.*')])
@@ -298,6 +300,7 @@ class QUakeMdInterface(tk.Toplevel):
     def onButtonDirectoryClick(self):
         directory = fd.askdirectory()
         self.variableDirectory.set(directory)
+        self.entryDirectory.xview_moveto(1)
         
     def addLineEq(self):
         liste_Ibin = ['RAVG', 'ROBS', 'RP50', 'RP84', 'RF50', 'RF84']
@@ -349,6 +352,7 @@ class QUakeMdInterface(tk.Toplevel):
     def onBrowseButtonClick(self, evt, index):
         filename = fd.askopenfilename(title="Choose the Equation file", filetypes=[('txt files','.txt'),('all files','.*')])
         self.listeVariableEq[index].set(filename)
+        self.listeEntryEq[index].xview_moveto(1)
     
     def deleteLineEq(self):
         if not (len(self.listeVariableEq) == len(self.listeVariableCoeff) and 
