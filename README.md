@@ -13,17 +13,17 @@ Recommended distribution is:
 
 QUake-MD GUI needs the following software installed :
 
-1) Python >= 3.6
+1) Python >= 3.9
 
-2) Numpy >= 1.16.2
+2) Numpy >= 1.21.5
 
-3) Pandas >= 0.24.2
+3) Pandas >= 1.4.2
 
-4) Scipy >= 1.1.1
+4) Scipy >= 1.7.3
 
-5) Matplotlib = 3.0.3
+5) Matplotlib = 3.5.1
 
-6) Basemap__ = 1.2.0
+6) Basemap__ = 1.2.2
 
 __https://anaconda.org/conda-forge/basemap
 
@@ -39,7 +39,7 @@ Execute the following command in python in the QUake-MD GUI repository:
 run QUake-MD/AppliInterface.py
 '''
 
-Detailed information about the installation and the use of QUake-MD GUI are available in the User manual.
+Detailed information about the installation and the use of QUake-MD GUI are available in the User manual. You will find the updated User manual in Documentation/build and access it by opening the index.html file.
 
 ## Reference to use QUake-MD
 
