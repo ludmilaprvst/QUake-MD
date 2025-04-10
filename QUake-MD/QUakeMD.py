@@ -180,17 +180,17 @@ class QUakeMD():
         
         DataObs = copy.deepcopy(evt.Obsevid)
         DataObs_ref = evt.Obsevid.copy()
+       
+        # Dealing with the IDP 0 values
+        I0_ini = evt.Io_ini
+        evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'Iobs'] = 1
+        evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'QIobs'] = 'C'
+        evt.Obsevid = evt.Obsevid[evt.Obsevid['Iobs'] > 0]
+        # Dealing with the IDP with I value superior to epicentral intensity
+        evt.Obsevid.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
         # Saving the different isoseismal
         Ic_ref = Param_Evt['Ic']
         self.save_isoseist(evt, Ic_ref)
-        # unique_metbin = np.unique(self.listeIbin)
-        # for metbin in unique_metbin:
-        #     evt.Binning_Obs(1, Param_Evt['Ic'], method_bin=metbin)
-        #     ObsBin = evt.ObsBinn
-        #     ObsBin_save = copy.deepcopy(ObsBin)
-        #     ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
-        #     ObsBin_save.to_csv(self.output_folder+'/'+str(evt.evid)+'/IDP_binning_' + metbin + '.txt')
-        
         # Application of the different IPEs stored in .txt files (for loop on the .txt files)
         for index in range(len(self.listVarEq)):
             # Initialization of figure with results of inversion of intensity data
@@ -207,7 +207,7 @@ class QUakeMD():
             axcb = fig_intensity.add_subplot(gs[1])
 
             # Initialization of Io and Ic
-            I0_ini = evt.Io_ini
+            
             StdI0 = evt.QI0
             #Io_evt = I0_ini
             
@@ -217,14 +217,6 @@ class QUakeMD():
             Ic = Ic_ref
             
             self.writeOnLogFile('Ic = ' + str(Ic))
-            
-            
-            evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'Iobs'] = 1
-            evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'QIobs'] = 'C'
-            
-            evt.Obsevid = evt.Obsevid[evt.Obsevid['Iobs'] > 0]
-            evt.Obsevid.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
-
             
             inversion = 'BasedOnIobs'
                 
