@@ -126,6 +126,12 @@ class QUakeMD():
         self.logfile.write(s + '\n')
         print(s)
         
+    def init_PDF(self):
+        PDF_HM = np.zeros((self.PdfNClassH, self.PdfNClassM))
+        PDF_HIo = np.zeros((self.PdfNClassH, self.PdfNClassIo))
+        PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
+        return PDF_HM, PDF_HIo, PDF_HMIo
+        
     def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
         self.writeOnLogFile("Id of the event : " + str(evt.evid))
@@ -134,9 +140,10 @@ class QUakeMD():
         self.writeOnLogFile("Sigma sampling :" + str(self.LimitForSamplingInStd))
         
         # Initialization of PDF
-        PDF_HM = np.zeros((self.PdfNClassH, self.PdfNClassM))
-        PDF_HIo = np.zeros((self.PdfNClassH, self.PdfNClassIo))
-        PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
+        PDF_HM, PDF_HIo, PDF_HMIo = self.init_PDF()
+        # PDF_HM = np.zeros((self.PdfNClassH, self.PdfNClassM))
+        # PDF_HIo = np.zeros((self.PdfNClassH, self.PdfNClassIo))
+        # PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
     
         # Creation of output folder for PDF and figures by event
         foldername = self.output_folder + '/' + str(evt.evid)
@@ -266,7 +273,7 @@ class QUakeMD():
                     start_depth, start_mag = SearchBestStartDepth(evt, methode_bin,
                                                                   Beta, C1, C2, gamma,
                                                                   self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
-                    print(start_depth, start_mag)
+                    #print(start_depth, start_mag)
                     if not start_depth:
                         Singular = True
                         start_depth = 10
@@ -492,7 +499,7 @@ class QUakeMD():
                 # MAJ du logfile
                 self.writeOnLogFile('Barycenter of the group of IPE:')
                 self.writeOnLogFile('M = %.2f; H = %.2f; I0 = %.2f' % (Barycentre_MagLaw, 10**Barycentre_LogHLaw, Barycentre_IoLaw))
-                print (str(evt.year))
+                #print (str(evt.year))
                 
                 # End of the control figure of the IPE fit to the intensity decrease
                 plt.tight_layout()      

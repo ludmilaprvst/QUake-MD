@@ -117,7 +117,49 @@ def Binning_Obs(ObsComplet, Param_Evt, binning, depth, I0):
     #print ObsBinn
     return ObsBinn
 
+def add_I02obsbin(evt, depth, StdI_0):
+    """
+    Add the epicentral intensity as a supplementary isoseist with an associated
+    epicentral distance equal to 0.
 
+    Parameters
+    ----------
+    evt : class
+        Class object with the metadata associated to one earthquake,  the associated IDP
+        and isoseists.
+    depth : float
+        depth of the earthquake.
+    StdI_0 : float
+        Standard deviation associated to the epicentral intensity.
+
+    Raises
+    ------
+    ValueError
+        Raise a value error when the epicentral intensity was not added.
+
+    Returns
+    -------
+    ObsBin : pandas.DataFrame
+        DataFrame containing the isoseist of one earthquake, with epicentral intensity
+        added as a supplementary isoseist with an associated
+        epicentral distance equal to 0.
+
+    """
+    ObsBin = evt.ObsBinn.copy()
+    len01 = len(ObsBin)
+    ObsBin = pd.concat([ObsBin, pd.DataFrame({'EVID' : [evt.evid],
+                            'Depi' : [0],
+                            'Hypo': [depth],
+                            'I': [evt.Io_ini],
+                            'StdI': [StdI_0],
+                            'Io': [evt.Io_ini],
+                            'Io_std': [evt.QI0],
+                            'StdLogR': [99],
+                            'Ndata': [0]})],  ignore_index=True)
+    len02 = len(ObsBin)
+    if len02-len01!=1:
+        raise ValueError('Pb avec ajout I0 obsbin')
+    return ObsBin
 
 def SearchBestStartDepth(evt, method_bin, 
                          beta, c1, c2, gamma,
@@ -128,12 +170,9 @@ def SearchBestStartDepth(evt, method_bin,
     This function uses the IDPs of one earthquake and one IPE to search starting values
     for the depth and magnitude inversions. Use a WRMS grid search: the couple with the minimal WRMS will be chosen as starting values
     
-    :param ObsComplet: table containing information about IDP of one earthquake,
-    with the following columns: epicentral distance of the IDPs, intensity values of the IDPs,
-    associated standard deviation of the IDPs
-    :param Param_Evt: dictionnary containing the following information for one earthquake: intensity
-    of completeness, epicentral intensity standard deviation, earthquake ID, epicentral intensity
-    :param Binning: a library.py function of binning
+    :param evt: Class object with the metadata associated to one earthquake,  the associated IDP
+    and isoseists.
+    :param method_bin: name of the binning strategy
     :param beta: beta coefficient of the IPE
     :param c1: c1 coefficent of the IPE
     :param c2: c2 coefficient of the IPE
@@ -141,12 +180,10 @@ def SearchBestStartDepth(evt, method_bin,
     :param depth_min: allowed minimal depth for the WRMS search and the depth inversion
     :param depth_max: allowed maximal depth for the WRMS search and the depth inversion
     :param nbre_prof_test: number of tested depths for the WRMS search
-    :param I_value: deprecated parameter, should disapear in future versions
-    :param methode_bin: name of the binning strategy
+
     
-    :type ObsComplet: pandas.DataFrame
-    :type Param_Evt: dict
-    :type Binning: function
+    :type evt: class
+    :type methode_bin: str
     :type beta: float
     :type c1: float
     :type c2: float
@@ -154,10 +191,9 @@ def SearchBestStartDepth(evt, method_bin,
     :type depth_min: float
     :type depth_max: float
     :type nbre_prof_test: int
-    :type I_value: float
-    :type methode_bin: str
     
-    :return: stating values of depth and magnitude
+    
+    :return: starting values of depth and magnitude
     """
     nObsMin = 1
     
@@ -166,31 +202,13 @@ def SearchBestStartDepth(evt, method_bin,
     magnitude = np.zeros(len(prof_testees))
     EvtOk = False
     for ii, depth in enumerate(prof_testees):
-#        print(depth)
-        #depth = depth_min+float(ii)*(depth_max-depth_min)/float(nbre_prof_test-1)
         StdI_0 = max([Std['A'], evt.QI0])
         evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
-        ObsBin = evt.ObsBinn
-        ObsBin = ObsBin.append({'EVID' : evt.evid,
-                                'Depi' : 0,
-                                'Hypo': depth,
-                                'I': evt.Io_ini,
-                                'StdI': StdI_0,
-                                'Io': evt.Io_ini,
-                                'Io_std': evt.QI0,
-                                'StdLogR': 99,
-                                'Ndata': 0}, 
-                                ignore_index=True)
+        ObsBin = add_I02obsbin(evt, depth, StdI_0)
+
         if ObsBin.shape[0]>nObsMin:
             Mag, StdM = WLSIC.WLSIC_oneEvt(ObsBin, depth, 1, beta, gamma, c1, c2).do_wls_M()
-#            #Mag  = resM[0][0]
-#            try:    
-#    #                                (Cm,resultfortran) = wls(len(Data2inverse),1,Data2inverse,Cd,Wd,0,Cible)
-#                resM = WLSIC.WLSIC_M(ObsBin, depth, 1, beta, gamma, c1, c2).do_wls_M()
-#                Mag  = resM[0][0]
-#                EvtOk = True
-#            except:
-#                    print('Singular')
+
             Dhypo = ObsBin['Hypo'].values
             Iobs = ObsBin['I'].values
             Wd = 1./ObsBin['StdI'].values

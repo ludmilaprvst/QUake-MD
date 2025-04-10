@@ -277,7 +277,7 @@ class plotEvtInterface(tk.Toplevel):
             return
         
         self.evid.set(self.liste.get(choiceInt[0]))
-        print(self.evid)
+        #print(self.evid)
         self.UseThread()    
         
     def onButtonSaveClick(self):

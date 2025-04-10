@@ -48,15 +48,16 @@ def ROBS(obsdata, depth, Ic, I0, QI0):
     #print(obsdata.EVID.values[0])
     #print(obsdata.EVID.values[0])
     #print(Ic)
-    obsdata = obsdata[obsdata.Iobs>=Ic]
-    obsdata['Depi'].replace(0, 0.5, inplace=True)
+    obsdata_Ic = obsdata[obsdata.Iobs>=Ic].copy()
+    obsdata_Ic.loc[obsdata_Ic['Depi']==0, 'Depi'] = 0.5
+    #♣obsdata['Depi'].replace(0, 0.5, inplace=True)
     #print(obsdata.EVID.values[0])
-    obsdata.loc[:, 'poids'] = obsdata.apply(lambda row: 1/Stdobs[row['QIobs']]**2, axis=1)
-    obsdata.loc[:, 'LogDepi'] = obsdata.apply(lambda row: np.log10(row['Depi']), axis=1)
+    obsdata_Ic.loc[:, 'poids'] = obsdata_Ic.apply(lambda row: 1/Stdobs[row['QIobs']]**2, axis=1)
+    obsdata_Ic.loc[:, 'LogDepi'] = obsdata_Ic.apply(lambda row: np.log10(row['Depi']), axis=1)
     
-    grouped_byIbin = obsdata.groupby('Iobs')
-    wm = lambda x: np.average(x, weights=obsdata.loc[x.index, "poids"])
-    varwm = lambda x: np.sum(obsdata.loc[x.index, "poids"]*(np.average(x, weights=obsdata.loc[x.index, "poids"]) - x)**2)/np.sum(obsdata.loc[x.index, "poids"])
+    grouped_byIbin = obsdata_Ic.groupby('Iobs')
+    wm = lambda x: np.average(x, weights=obsdata_Ic.loc[x.index, "poids"])
+    varwm = lambda x: np.sum(obsdata_Ic.loc[x.index, "poids"]*(np.average(x, weights=obsdata_Ic.loc[x.index, "poids"]) - x)**2)/np.sum(obsdata_Ic.loc[x.index, "poids"])
     obsbin = grouped_byIbin.agg({'LogDepi':[("RAVG", wm), ("VarLogR", varwm)],
                                 'EVID': [('Ndata', 'count')]})
     obsbin.columns = obsbin.columns.get_level_values(1)

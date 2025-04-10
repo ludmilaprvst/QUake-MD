@@ -163,8 +163,8 @@ class PlotEvt():
         if not type(option_felt) is bool:
             self.Obsevid.loc[self.Obsevid['Iobs']==-1, 'Iobs'] = option_felt
           
-        print('COUCOU 2, NOBS')
-        print(self.Nobs)
+        # print('COUCOU 2, NOBS')
+        # print(self.Nobs)
         self.fig = plt.figure(figsize=[12, 8]) 
         gs = GridSpec(1, 2, width_ratios=[1.5,1])
         axe0 = plt.subplot(gs[0,0])
@@ -366,7 +366,7 @@ class PlotEvt():
         SortieBinn = libr.RAVG_c(Iobs,Hypo,QIobs,I0,QI0,depth,evid, Ic,30)
         self.ObsBinn = pd.DataFrame(data=SortieBinn, columns=colonnes_binn)
         self.ObsBinn = self.ObsBinn[self.ObsBinn['EVID'] != 0]
-        print(self.ObsBinn)
+        #print(self.ObsBinn)
 
 
 class FilesForPlot():
@@ -455,7 +455,7 @@ def searchByDate(EvtName, day, month, year):
         setEvid = EvtFile[(EvtFile['Year']==year) & (EvtFile['Month'] == month)]['EVID'].values
     else:
         setEvid = EvtFile[(EvtFile['Year']==year) & (EvtFile['Month'] == month) & (EvtFile['Day']== day)]['EVID'].values
-    print(setEvid)
+    #print(setEvid)
     return setEvid
 
 
