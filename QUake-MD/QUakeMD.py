@@ -131,6 +131,18 @@ class QUakeMD():
         PDF_HIo = np.zeros((self.PdfNClassH, self.PdfNClassIo))
         PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
         return PDF_HM, PDF_HIo, PDF_HMIo
+    
+    def init_barycenter(self):
+        return 0, 0, 0, 0, 0, 0
+    
+    def save_isoseist(self, evt, Ic):
+        unique_metbin = np.unique(self.listeIbin)
+        for metbin in unique_metbin:
+            evt.Binning_Obs(1, Ic, method_bin=metbin)
+            ObsBin = evt.ObsBinn
+            ObsBin_save = copy.deepcopy(ObsBin)
+            ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
+            ObsBin_save.to_csv(self.output_folder+'/'+str(evt.evid)+'/IDP_binning_' + metbin + '.txt')
         
     def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
@@ -141,9 +153,6 @@ class QUakeMD():
         
         # Initialization of PDF
         PDF_HM, PDF_HIo, PDF_HMIo = self.init_PDF()
-        # PDF_HM = np.zeros((self.PdfNClassH, self.PdfNClassM))
-        # PDF_HIo = np.zeros((self.PdfNClassH, self.PdfNClassIo))
-        # PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
     
         # Creation of output folder for PDF and figures by event
         foldername = self.output_folder + '/' + str(evt.evid)
@@ -153,12 +162,8 @@ class QUakeMD():
         self.writeOnLogFile("Output folder for individual results created")
         
         # Initialization of barycenter
-        big_somme = 0
-        Barycentre_Mag = 0
-        Barycentre_LogH = 0
-        Barycentre_Io = 0
-        poids_manquants = 0
-        poids_presents = 0 
+        (big_somme,  Barycentre_Mag, Barycentre_LogH,
+         Barycentre_Io, poids_manquants, poids_presents)= self.init_barycenter()
         
         Param_Evt = {}
         Param_Evt['Year'] = evt.year
@@ -172,17 +177,20 @@ class QUakeMD():
             
         self.writeOnLogFile("StdI_0 = " + str(evt.QI0))
         
-        # Saving the different isoseismal
+        
         DataObs = copy.deepcopy(evt.Obsevid)
-        DataObs_ref = evt.Obsevid
+        DataObs_ref = evt.Obsevid.copy()
+        # Saving the different isoseismal
         Ic_ref = Param_Evt['Ic']
-        unique_metbin = np.unique(self.listeIbin)
-        for metbin in unique_metbin:
-            evt.Binning_Obs(1, Param_Evt['Ic'], method_bin=metbin)
-            ObsBin = evt.ObsBinn
-            ObsBin_save = copy.deepcopy(ObsBin)
-            ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
-            ObsBin_save.to_csv(self.output_folder+'/'+str(evt.evid)+'/IDP_binning_' + metbin + '.txt')
+        self.save_isoseist(evt, Ic_ref)
+        # unique_metbin = np.unique(self.listeIbin)
+        # for metbin in unique_metbin:
+        #     evt.Binning_Obs(1, Param_Evt['Ic'], method_bin=metbin)
+        #     ObsBin = evt.ObsBinn
+        #     ObsBin_save = copy.deepcopy(ObsBin)
+        #     ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
+        #     ObsBin_save.to_csv(self.output_folder+'/'+str(evt.evid)+'/IDP_binning_' + metbin + '.txt')
+        
         # Application of the different IPEs stored in .txt files (for loop on the .txt files)
         for index in range(len(self.listVarEq)):
             # Initialization of figure with results of inversion of intensity data
@@ -196,7 +204,6 @@ class QUakeMD():
             # Creation of subplot of fig_intensity
             ax = fig_intensity.add_subplot(gs[0])
             axMH_IPE = fig_intensity.add_subplot(gs[2])
-            
             axcb = fig_intensity.add_subplot(gs[1])
 
             # Initialization of Io and Ic

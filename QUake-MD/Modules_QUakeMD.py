@@ -366,28 +366,17 @@ def inversion_MHI0(evt, method_bin,
     StdI0_fin = 0
         
     evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
-    ObsBin = evt.ObsBinn
+   #ObsBin = evt.ObsBinn
     StdI_0 = max([Std['A'], evt.QI0_inv])
     StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
-            
-    ObsBin = ObsBin.append({'EVID' : evt.evid,
-                            'Depi' : 0,
-                            'Hypo': depth,
-                            'I': evt.Io_inv,
-                            'StdI': StdI_0,
-                            'Io': evt.Io_ini,
-                            'Io_std': evt.QI0,
-                            'StdLogR': 99,
-                            'Ndata': 0}, 
-                             ignore_index=True)
+    ObsBin = add_I02obsbin(evt, depth, StdI_0)        
+
     while iteration<MaxIter:
         print(iteration)
         iteration+=1
         # Depth inversion
-        if not imposed_depth:
-            
+        if not imposed_depth:         
             test_inv = False
-            #ObsBin.loc[20, :] = [NumEvt, depth, I0, Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
             test_inv = ok4depthinv(ObsBin, mag, depth,
                                    C1, C2, Beta, gamma,
                                    depth_min, depth_max)
@@ -401,17 +390,8 @@ def inversion_MHI0(evt, method_bin,
                StdH_fin = 0.
                depth = depth
             evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
-            ObsBin = evt.ObsBinn
-            ObsBin = ObsBin.append({'EVID' : evt.evid,
-                                    'Depi' : 0,
-                                    'Hypo': depth,
-                                    'I': evt.Io_inv,
-                                    'StdI': StdI_0,
-                                    'Io': evt.Io_ini,
-                                    'Io_std': evt.QI0,
-                                    'StdLogR': 99,
-                                    'Ndata': 0}, 
-                                    ignore_index=True)
+            ObsBin = add_I02obsbin(evt, depth, StdI_0) 
+
         else:
             depth = imposed_depth
             StdH_fin = 1
