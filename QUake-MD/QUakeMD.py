@@ -132,9 +132,6 @@ class QUakeMD():
         PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
         return PDF_HM, PDF_HIo, PDF_HMIo
     
-    def init_barycenter(self):
-        return 0, 0, 0, 0, 0, 0
-    
     def save_isoseist(self, evt, Ic):
         unique_metbin = np.unique(self.listeIbin)
         for metbin in unique_metbin:
@@ -143,16 +140,43 @@ class QUakeMD():
             ObsBin_save = copy.deepcopy(ObsBin)
             ObsBin_save = ObsBin_save[['EVID', 'Depi', 'I','StdI', 'StdLogR', 'Ndata']]
             ObsBin_save.to_csv(self.output_folder+'/'+str(evt.evid)+'/IDP_binning_' + metbin + '.txt')
+            
+    def cleaning_Ieq0(self, evt):
+        evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'Iobs'] = 1
+        evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'QIobs'] = 'C'
+        evt.Obsevid = evt.Obsevid[evt.Obsevid['Iobs'] > 0]
         
+    def init_figintensity(self):
+        # Initialization of figure with results of inversion of intensity data
+        fig_intensity = plt.figure(figsize=(6, 7))
+        gs = mpl.gridspec.GridSpec(2, 2, width_ratios=[1, 0.1],
+                               height_ratios=[1, 0.5])
+        # Creation of subplot of fig_intensity
+        ax = fig_intensity.add_subplot(gs[0])
+        axMH_IPE = fig_intensity.add_subplot(gs[2])
+        axcb = fig_intensity.add_subplot(gs[1])
+        ax.set_xlabel('Epicentral distance [km]', size=12)
+        ax.set_ylabel('Intensity', size=12)
+        axMH_IPE.set_xlabel('Depth [km]', size=12)
+        axMH_IPE.set_ylabel('Magnitude [Mw]', size=12)
+        axMH_IPE.set_ylim([3, 7.5])
+        return fig_intensity, ax, axMH_IPE, axcb
+
+    
     def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
         self.writeOnLogFile("Id of the event : " + str(evt.evid))
+        self.writeOnLogFile("StdI_0 = " + str(evt.QI0))
         self.writeOnLogFile("Minimal depth limit: " + str(self.depth_min_ref))
         self.writeOnLogFile("Maximal depth limit: " + str(self.depth_max_ref))
         self.writeOnLogFile("Sigma sampling :" + str(self.LimitForSamplingInStd))
         
         # Initialization of PDF
         PDF_HM, PDF_HIo, PDF_HMIo = self.init_PDF()
+        
+        # Initialization of barycenter
+        (big_somme,  Barycentre_Mag, Barycentre_LogH,
+         Barycentre_Io, poids_manquants, poids_presents)= np.zeros(6)
     
         # Creation of output folder for PDF and figures by event
         foldername = self.output_folder + '/' + str(evt.evid)
@@ -160,60 +184,33 @@ class QUakeMD():
             os.makedirs(foldername)
         
         self.writeOnLogFile("Output folder for individual results created")
-        
-        # Initialization of barycenter
-        (big_somme,  Barycentre_Mag, Barycentre_LogH,
-         Barycentre_Io, poids_manquants, poids_presents)= self.init_barycenter()
-        
-        Param_Evt = {}
-        Param_Evt['Year'] = evt.year
-        if self.Ic == False:
-            Param_Evt['Ic'] = evt.Ic
-        else:
-            Param_Evt['Ic'] = self.Ic
-        
-        if Param_Evt['Ic'] >= 12:
-            Param_Evt['Ic'] = 3
-            
-        self.writeOnLogFile("StdI_0 = " + str(evt.QI0))
-        
-        
+
         DataObs = copy.deepcopy(evt.Obsevid)
         DataObs_ref = evt.Obsevid.copy()
        
         # Dealing with the IDP 0 values
-        I0_ini = evt.Io_ini
-        evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'Iobs'] = 1
-        evt.Obsevid.loc[evt.Obsevid['Iobs'] == 0, 'QIobs'] = 'C'
-        evt.Obsevid = evt.Obsevid[evt.Obsevid['Iobs'] > 0]
+        self.cleaning_Ieq0(evt)
         # Dealing with the IDP with I value superior to epicentral intensity
+        I0_ini = evt.Io_ini
         evt.Obsevid.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
         # Saving the different isoseismal
-        Ic_ref = Param_Evt['Ic']
+        if self.Ic == False:
+            Ic_ref = copy.deepcopy(evt.Ic)
+        else:
+            Ic_ref = self.Ic
         self.save_isoseist(evt, Ic_ref)
         # Application of the different IPEs stored in .txt files (for loop on the .txt files)
         for index in range(len(self.listVarEq)):
-            # Initialization of figure with results of inversion of intensity data
-            fig_intensity = plt.figure(figsize=(6, 7))
-            gs = mpl.gridspec.GridSpec(2, 2, width_ratios=[1, 0.1],
-                                   height_ratios=[1, 0.5])
             Poids_branche = self.listVarCoeff[index]
             methode_bin = self.listeIbin[index]
             empe = self.listVarEq[index]
-        
-            # Creation of subplot of fig_intensity
-            ax = fig_intensity.add_subplot(gs[0])
-            axMH_IPE = fig_intensity.add_subplot(gs[2])
-            axcb = fig_intensity.add_subplot(gs[1])
+            # Initialization of figure with results of inversion of intensity data
+            fig_intensity, ax, axMH_IPE, axcb = self.init_figintensity()
 
             # Initialization of Io and Ic
-            
             StdI0 = evt.QI0
-            #Io_evt = I0_ini
-            
             QI0_inv = StdI0
             I0 = I0_ini
-            
             Ic = Ic_ref
             
             self.writeOnLogFile('Ic = ' + str(Ic))
@@ -223,33 +220,20 @@ class QUakeMD():
             # Update logfile
             self.writeOnLogFile('IPE: ' + str(empe))
             # Loading the IPE .txt files
-#            print(read_empe2(empe))
-#            print(empe)
             try:
                 beta_liste, c1_liste, c2_liste, poidsEMPE_liste, gamma_liste = read_empe2(empe)
             except:
                 self.writeOnLogFile('Error reading ' + str(empe))
-            # A modifier: attention, ça joue dans SearchBestStartDepth aussi.
-            #methode_bin = 'RAVG'
-            #binning = ale.RAVG_c
             
             # Initialization of variables
-            nloi = 0
-            comptlaw = 0
-            sumpoidsEMPE = 0
-            
+            (nloi, comptlaw, sumpoidsEMPE) =  np.zeros(3)
             # Initialization of barycenter
-            Barycentre_MagLaw = 0
-            Barycentre_LogHLaw = 0
-            Barycentre_IoLaw = 0
-            
+            (Barycentre_MagLaw, Barycentre_LogHLaw, Barycentre_IoLaw) =  np.zeros(3)
             # Weight for barycenter calculus
-            poids_manquants_law = 0
-            poids_presents_law = 0
-            
+            (poids_manquants_law, poids_presents_law) = np.zeros(2)
             # Initialization of PDF
             PDF_HMLaw = np.zeros((self.PdfNClassH, self.PdfNClassM))
-#            print(beta_liste)
+
             # Computing the gaussian space of solution for each IPE
             for Beta, C1, C2, gamma, w_empe in zip(beta_liste, c1_liste, c2_liste, gamma_liste, poidsEMPE_liste):
                 Singular = False
@@ -284,12 +268,6 @@ class QUakeMD():
                     self.writeOnLogFile('Inversion: ' + str(inversion))
                     self.writeOnLogFile('I = ' + str(C1) + ' + ' + str(C2) + 'M ' + str(Beta) + 'log10(Dhypo) + ' + str(gamma) + 'Dhypo')
                     # Inversion of M and H (in Modules_QUakeMD)
-#                    (mag, depth, I0, StdM_fin, StdH_fin, Param_Evt, ObsBin) = inversion_MHI0(Param_Evt['EVID'], DataObs, 
-#                                                                                    methode_bin, binning, I_value,
-#                                                                                    C1, C2, Beta, gamma,
-#                                                                                    start_depth, start_mag, Param_Evt,
-#                                                                                    self.depth_min_ref, self.depth_max_ref,
-#                                                                                    self.imposed_depth, self.I0_option)
                     (mag, depth, I0, StdM_fin,
                      StdH_fin, evt) = inversion_MHI0(evt, methode_bin, 
                                                      C1, C2, Beta, gamma,
@@ -348,21 +326,15 @@ class QUakeMD():
                                         color='PaleVioletRed', alpha=0.1)
 
                     ax.semilogx(Depi_pour_plot, Ipred, color=couleur_depth)
-                    ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
-                    locmaj = mpl.ticker.LogLocator(base=10.0, subs=(0.1, 0.2, 0.5, 1, 2, 5, 10 ))
-                    ax.xaxis.set_major_locator(locmaj)
-                    ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
+                    
                     ax.set_title(titre_subplt)
                     ax.set_xlim([1, maxdepi+100])
                     ax.set_ylim([2, evt.Io_sup+1])
-                    ax.set_xlabel('Epicentral distance [km]', size=12)
-                    ax.set_ylabel('Intensity', size=12)
-                    axMH_IPE.set_xlabel('Depth [km]', size=12)
-                    axMH_IPE.set_ylabel('Magnitude [Mw]', size=12)
+                   
                     axMH_IPE.set_title(titre_subplt)
                     axMH_IPE.set_xlim([self.depth_min_ref-1, self.depth_max_ref+2])
                     axMH_IPE.set_xlim([depth_min_cb_plot-1, depth_max_cb_plot+2])
-                    axMH_IPE.set_ylim([3, 7.5])
+                    
                     
                     cb = mpl.colorbar.ColorbarBase(axcb,
                                                    cmap=cmapcb,
@@ -371,6 +343,11 @@ class QUakeMD():
                     cb.set_label('Depth [km]', size=12)
                     cb.set_ticks(np.arange(self.depth_min_ref, self.depth_max_ref+5, 5))
                     cb.ax.invert_yaxis()
+                    ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
+                    locmaj = mpl.ticker.LogLocator(base=10.0, subs=(0.1, 0.2, 0.5, 1, 2, 5, 10 ))
+                    ax.xaxis.set_major_locator(locmaj)
+                    ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
+                    
                     
 
                     # Avoiding too small values of H sigma
@@ -506,6 +483,7 @@ class QUakeMD():
                 Ibin_plt, = ax.plot([], [], 'd', markerfacecolor='w', markeredgecolor='k', label='Binned intensity with'+ methode_bin +' method')
                 Iobs_plt, = ax.plot([], [], '.', color='Gray', label='Observed intensities')
                 ax.legend(handles=[Io_uncertainties, Ibin_plt, Iobs_plt])
+                
                 fig_intensity.savefig(foldername+'/'+str(evt.evid)+'_fit_intensity_Law_'+str(index)+'_'+ methode_bin+'.jpeg', dpi=100,
                                         bbox_inches='tight')
                 # Save the IPE's .txt group space of solutions
