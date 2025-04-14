@@ -111,8 +111,9 @@ class PlotEvt():
         self.Lon_evt = float(EvtFile[EvtFile['EVID']==self.evid]['Lon'].values[0])
         if not (isinstance(self.Lat_evt, float) and isinstance(self.Lon_evt,float)):
             tkm.showerror("Error", "invalid lat or lon")
-            return
-        ObsFile.loc[ObsFile['EVID']==self.evid, 'Depi'] = ObsFile.loc[ObsFile['EVID']==self.evid].apply(lambda row:CalcDist(row['Lon'],row['Lat'],self.Lon_evt,self.Lat_evt),axis=1)
+            
+        if not 'Depi' in ObsFile.columns:
+            ObsFile.loc[ObsFile['EVID']==self.evid, 'Depi'] = ObsFile.loc[ObsFile['EVID']==self.evid].apply(lambda row:CalcDist(row['Lon'],row['Lat'],self.Lon_evt,self.Lat_evt),axis=1)
         ObsFile.loc[ObsFile['EVID']==self.evid,'I0'] = self.Io_ini
         
         date = EvtFile[EvtFile['EVID']==self.evid]['Year'].values[0]
