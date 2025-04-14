@@ -161,8 +161,7 @@ def add_I02obsbin(evt, depth, StdI_0):
         raise ValueError('Pb avec ajout I0 obsbin')
     return ObsBin
 
-def SearchBestStartDepth(evt, method_bin, 
-                         beta, c1, c2, gamma,
+def SearchBestStartDepth(evt, beta, c1, c2, gamma,
                          depth_min, depth_max, nbre_prof_test):
     """
     Search the start depth and magnitude for the depth and magnitude inversion
@@ -203,7 +202,8 @@ def SearchBestStartDepth(evt, method_bin,
     EvtOk = False
     for ii, depth in enumerate(prof_testees):
         StdI_0 = max([Std['A'], evt.QI0])
-        evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
+        #evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
+        evt.updatedepth_obsin(depth)
         ObsBin = add_I02obsbin(evt, depth, StdI_0)
 
         if ObsBin.shape[0]>nObsMin:
@@ -301,7 +301,7 @@ def ok4I0inv(evt, ObsBin, mag, depth,
             test_inv = True
     return test_inv
 
-def inversion_MHI0(evt, method_bin,
+def inversion_MHI0(evt,
                    C1, C2, Beta, gamma,
                    start_depth, start_mag,
                    depth_min, depth_max,
@@ -365,8 +365,8 @@ def inversion_MHI0(evt, method_bin,
     StdM_fin = 0
     StdI0_fin = 0
         
-    evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
-   #ObsBin = evt.ObsBinn
+
+    evt.updatedepth_obsin(depth)
     StdI_0 = max([Std['A'], evt.QI0_inv])
     StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
     ObsBin = add_I02obsbin(evt, depth, StdI_0)        
@@ -389,7 +389,7 @@ def inversion_MHI0(evt, method_bin,
             else:
                StdH_fin = 0.
                depth = depth
-            evt.Binning_Obs(depth, evt.Ic, method_bin=method_bin)
+            evt.updatedepth_obsin(depth)
             ObsBin = add_I02obsbin(evt, depth, StdI_0) 
 
         else:
@@ -410,17 +410,6 @@ def inversion_MHI0(evt, method_bin,
                 StdI0_fin = 0.5
                 evt.QI0_inv = StdI0_fin
             
-        
-#            ObsBin = ObsBin.append({'EVID' : evt.evid,
-#                                    'Depi' : 0,
-#                                    'Hypo': depth,
-#                                    'I': evt.Io_inv,
-#                                    'StdI': StdI_0,
-#                                    'Io': evt.Io_ini,
-#                                    'Io_std': evt.QI0,
-#                                    'StdLogR': 99,
-#                                    'Ndata': 0}, 
-#                                    ignore_index=True)
         else:
             I0 = evt.Io_ini
             evt.Io_inv = I0
@@ -435,10 +424,6 @@ def inversion_MHI0(evt, method_bin,
         try:    
             resM = WLSIC.WLSIC_oneEvt(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wls_M()
             mag  = resM[0][0]
-#            StdI_0 = max([Std['A'], Param_Evt['QI0_inv']])
-#            ObsBin.loc[20, :] = [NumEvt, depth, I0, Param_Evt['Io_ini'], Param_Evt['QI0'], StdI_0, 99, 1]
-#            resM = WLSIC.WLSIC_M(ObsBin, depth, mag, Beta, gamma, C1, C2).do_wls_M_std()
-#            StdM_fin = np.sqrt(resM[1][0])
             StdM_fin = np.sqrt(np.diag(resM[1][0]))
         except:
                 print('Singular')

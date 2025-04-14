@@ -134,6 +134,9 @@ class PlotEvt():
             self.ObsBinn = libr.RF50(self.Obsevid, depth, Ic, self.I0, self.QI0)
         elif method_bin == 'RF84':
             self.ObsBinn = libr.RF84(self.Obsevid, depth, Ic, self.I0, self.QI0)
+            
+    def updatedepth_obsin(self, depth):      
+        self.ObsBinn.loc[:, 'Hypo'] = self.ObsBinn.apply(lambda row: np.sqrt(row['Depi']**2+depth**2), axis=1)
     
     def add_invMHI0_variables(self, QI0_inv, Io_inv, Ic):
         self.QI0_inv = QI0_inv

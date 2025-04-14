@@ -30,7 +30,8 @@ import library as ale
 print('Import of the library module: success')
 import PlotEvtObject as peo
 print('Import of the PlotEvt object modules: success')
-from Modules_QUakeMD import *
+#from Modules_QUakeMD import *
+from Modules_QUakeMD import add_I02obsbin, SearchBestStartDepth, inversion_MHI0, read_empe2, weight_percentile
 print('Import of the tool module: success')
 import WLSIC
 print('Import of the least square module: success')
@@ -223,7 +224,81 @@ class QUakeMD():
         ax.xaxis.set_major_locator(locmaj)
         ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
         return ax, axMH_IPE, axcb
-        
+    
+    def togoodformat_Std(self, std):
+        try:
+            std = std[0]
+        except TypeError:
+            pass
+        return std
+    
+    def fill_tripletsolution_byempe(self, evt, StdM_fin, StdH_fin, mag, depth,
+                                    C1, C2, Beta, gamma, empe):
+        # Initialization of the variable which will contain the space of solutions (after I0 filtering)
+        Triplets = {'Magnitude': [],
+                    'Profondeur': [],
+                    'Io': [],
+                    'Weights': []}
+        # I0 filtering of the gaussian space of solutions
+        #dM = self.LimitForSamplingInStd * StdM_fin / float(self.NSamples)
+        dH = self.LimitForSamplingInStd * StdH_fin / float(self.NSamples)
+        if dH == 0:
+            dH = 0.25
+        try:
+            Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
+            Hexp_min = max([self.depth_min_ref, depth - self.LimitForSamplingInStd * StdH_fin])
+            Hexp_max = min([self.depth_max_ref, depth + self.LimitForSamplingInStd * StdH_fin])
+            Hexplore = np.linspace(Hexp_min, Hexp_max, self.NSamples)
+            
+            sommewM = 0
+            ntest_explore = len(Mexplore)*len(Hexplore)
+            
+            for Mm in Mexplore:
+                wM = np.exp(-0.5*((Mm-mag)/StdM_fin)**2) 
+                sommewM += wM
+                sommewH = 0
+                for Hm in Hexplore:                    
+                    wH = np.exp(-0.5*((Hm-depth)/StdH_fin)**2)
+                    sommewH += wH
+                    if Hm > self.depth_max_ref:
+                        Hm = self.depth_max_ref
+                    if Hm < self.depth_min_ref:
+                        Hm = self.depth_min_ref
+
+                    Io_test = C1 + C2 * Mm + Beta * np.log10(Hm) + gamma * Hm
+                    if (Io_test >= evt.Io_inf) and (Io_test <= evt.Io_sup):
+                        Triplets['Magnitude'].append(float(Mm))
+                        Triplets['Profondeur'].append(float(Hm))
+                        Triplets['Io'].append(float(Io_test))
+                        try:                        
+                            Triplets['Weights'].append(wH[0]*wM[0])
+                        except IndexError:
+                            produit = wH*wM 
+                            try:
+                                Triplets['Weights'].append(produit[0])
+                            except IndexError:
+                                Triplets['Weights'].append(produit)
+            # MAJ of logfile
+            n_in_explore = len(Triplets['Magnitude'])
+            pourcent_in = n_in_explore/ntest_explore*100.
+            self.writeOnLogFile('Pourcent of solutions compatible with I0: ' +str(pourcent_in) +'%')
+            
+        except ZeroDivisionError:
+            with open('No_start_depth'+ self.tag+'.txt','a') as no_startdepth:
+                no_startdepth.write(str(evt.evid) + '\t' + empe + '\n')
+        except:
+            print('Unknown error in solutions space constitution')
+        return Triplets
+    
+
+    def control_StdHvalue(self, depth, StdH_fin):
+        if abs(depth - self.depth_max_ref) < 0.001:
+            StdH_fin = max([StdH_fin, 5. / self.LimitForSamplingInStd])
+        if abs(depth - self.depth_min_ref) < 0.001:
+            StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
+        return StdH_fin
+
+
     def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
         self.writeOnLogFile("Id of the event : " + str(evt.evid))
@@ -265,14 +340,30 @@ class QUakeMD():
             Poids_branche = self.listVarCoeff[index]
             methode_bin = self.listeIbin[index]
             empe = self.listVarEq[index]
-            # Initialization of figure with results of inversion of intensity data
-            fig_intensity, ax, axMH_IPE, axcb = self.init_figintensity()
-
+            
             # Initialization of Io and Ic
             StdI0 = evt.QI0
             QI0_inv = StdI0
             I0 = I0_ini
             Ic = Ic_ref
+            
+            # Preparation of the data
+            evt.Binning_Obs(8, Ic, method_bin=methode_bin) # Abritary 8 km depth
+            #StdI_0 = max([Std['A'], evt.QI0_inv])
+            #StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
+            #ObsBin = add_I02obsbin(evt, 8, StdI_0) # Abritary 8 km depth
+            
+            # Initialization of figure with results of inversion of intensity data
+            fig_intensity, ax, axMH_IPE, axcb = self.init_figintensity()
+
+            # Initialization of variables
+            (nloi, comptlaw, sumpoidsEMPE) =  np.zeros(3)
+            # Initialization of barycenter
+            (Barycentre_MagLaw, Barycentre_LogHLaw, Barycentre_IoLaw) =  np.zeros(3)
+            # Weight for barycenter calculus
+            (poids_manquants_law, poids_presents_law) = np.zeros(2)
+            # Initialization of PDF
+            PDF_HMLaw = np.zeros((self.PdfNClassH, self.PdfNClassM))
             
             self.writeOnLogFile('Ic = ' + str(Ic))
             
@@ -286,36 +377,19 @@ class QUakeMD():
             except:
                 self.writeOnLogFile('Error reading ' + str(empe))
             
-            # Initialization of variables
-            (nloi, comptlaw, sumpoidsEMPE) =  np.zeros(3)
-            # Initialization of barycenter
-            (Barycentre_MagLaw, Barycentre_LogHLaw, Barycentre_IoLaw) =  np.zeros(3)
-            # Weight for barycenter calculus
-            (poids_manquants_law, poids_presents_law) = np.zeros(2)
-            # Initialization of PDF
-            PDF_HMLaw = np.zeros((self.PdfNClassH, self.PdfNClassM))
-
             # Computing the gaussian space of solution for each IPE
             for Beta, C1, C2, gamma, w_empe in zip(beta_liste, c1_liste, c2_liste, gamma_liste, poidsEMPE_liste):
                 Singular = False
                 nloi += 1
                 comptlaw += 1
-                
-                # Initialization of the variable which will contain the space of solutions (after I0 filtering)
-                Triplets = {'Magnitude': [],
-                            'Profondeur': [],
-                            'Io': [],
-                            'Weights': []}
                 # Weight control
                 sumpoidsEMPE += w_empe
                 
-
                 # Initialization of the inverted parameters
                 I0_ini = evt.Io_ini
                 #evt.Io_inv = I0_ini
                 evt.add_invMHI0_variables(QI0_inv, I0_ini, Ic)
-                start_depth, start_mag = SearchBestStartDepth(evt, methode_bin,
-                                                              Beta, C1, C2, gamma,
+                start_depth, start_mag = SearchBestStartDepth(evt, Beta, C1, C2, gamma,
                                                               self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
                 #print(start_depth, start_mag)
                 if not start_depth:
@@ -330,21 +404,15 @@ class QUakeMD():
                 self.writeOnLogFile('I = ' + str(C1) + ' + ' + str(C2) + 'M ' + str(Beta) + 'log10(Dhypo) + ' + str(gamma) + 'Dhypo')
                 # Inversion of M and H (in Modules_QUakeMD)
                 (mag, depth, I0, StdM_fin,
-                 StdH_fin, evt) = inversion_MHI0(evt, methode_bin, 
+                 StdH_fin, evt) = inversion_MHI0(evt, 
                                                  C1, C2, Beta, gamma,
                                                  start_depth, start_mag, 
                                                  self.depth_min_ref, self.depth_max_ref,
-                                                 self.imposed_depth, self.I0_option)
-                try:
-                    StdM_fin = StdM_fin[0]
-                except TypeError:
-                    pass
-                try:
-                    StdH_fin = StdH_fin[0]
-                except TypeError:
-                    pass
-                self.index_result += 1
+                                                 self.imposed_depth, self.I0_option) 
+                StdM_fin = self.togoodformat_Std(StdM_fin)
+                StdH_fin = self.togoodformat_Std(StdH_fin)
                 
+                self.index_result += 1
                 # Update logfile
                 self.writeOnLogFile('M = %.2f; H = %.2f; I0=%.f' %(mag, depth, I0))
                 self.writeOnLogFile('StdM = %.2f; StdH = %.2f' %(StdM_fin, StdH_fin))
@@ -354,66 +422,13 @@ class QUakeMD():
                                       methode_bin, empe, C1, C2, Beta, gamma, comptlaw)
                 
                 # Avoiding too small values of H sigma
-                if abs(depth - self.depth_max_ref) < 0.001:
-                    StdH_fin = max([StdH_fin, 5. / self.LimitForSamplingInStd])
-                if abs(depth - self.depth_min_ref) < 0.001:
-                    StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
+                StdH_fin = self.control_StdHvalue(depth, StdH_fin)
                 # Storage of the IPEs central values and associated sigmas
                 self.result_by_EMPE.loc[self.index_result] = [evt.evid, methode_bin, C1, C2, Beta, gamma, mag,
                                    StdM_fin, depth, StdH_fin, I0]
-                # I0 filtering of the gaussian space of solutions
-                dM = self.LimitForSamplingInStd * StdM_fin / float(self.NSamples)
-                dH = self.LimitForSamplingInStd * StdH_fin / float(self.NSamples)
-                if dH == 0:
-                    dH = 0.25
-                try:
-                    Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
-                    Hexp_min = max([self.depth_min_ref, depth - self.LimitForSamplingInStd * StdH_fin])
-                    Hexp_max = min([self.depth_max_ref, depth + self.LimitForSamplingInStd * StdH_fin])
-                    Hexplore = np.linspace(Hexp_min, Hexp_max, self.NSamples)
-                    
-                    sommewM = 0
-                    ntest_explore = len(Mexplore)*len(Hexplore)
-                    
-                    for Mm in Mexplore:
-                        wM = np.exp(-0.5*((Mm-mag)/StdM_fin)**2) 
-                        sommewM += wM
-                        sommewH = 0
-                        for Hm in Hexplore:                    
-                            wH = np.exp(-0.5*((Hm-depth)/StdH_fin)**2)
-                            sommewH += wH
-                            if Hm > self.depth_max_ref:
-                                Hm = self.depth_max_ref
-                            if Hm < self.depth_min_ref:
-                                Hm = self.depth_min_ref
-
-                            Io_test = C1 + C2 * Mm + Beta * np.log10(Hm) + gamma * Hm
-                            if (Io_test >= evt.Io_inf) and (Io_test <= evt.Io_sup):
-                                Triplets['Magnitude'].append(float(Mm))
-                                Triplets['Profondeur'].append(float(Hm))
-                                Triplets['Io'].append(float(Io_test))
-                                try:                        
-                                    Triplets['Weights'].append(wH[0]*wM[0])
-                                except IndexError:
-                                    produit = wH*wM 
-                                    try:
-                                        Triplets['Weights'].append(produit[0])
-                                    except IndexError:
-                                        Triplets['Weights'].append(produit)
-                    # MAJ du logfile
-                    n_in_explore = len(Triplets['Magnitude'])
-                    pourcent_in = n_in_explore/ntest_explore*100.
-                    self.writeOnLogFile('Pourcent of solutions compatible with I0: ' +str(pourcent_in) +'%')
-                    
-                except ZeroDivisionError:
-                    with open('No_start_depth'+ self.tag+'.txt','a') as no_startdepth:
-                        no_startdepth.write(str(evt.evid) + '\t' + empe + '\n')
-                except:
-#                        Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
-#                        print(self.depth_min_ref, depth)
-#                        print(mag, self.LimitForSamplingInStd * StdM_fin)
-#                        print(self.NSamples)
-                    print('unknown error in solutions space constitution')
+                Triplets = self.fill_tripletsolution_byempe(evt, StdM_fin, StdH_fin, mag, depth,
+                                                C1, C2, Beta, gamma, empe)
+                
                                  
 #%%
                 if len(Triplets['Magnitude']) == 0:
