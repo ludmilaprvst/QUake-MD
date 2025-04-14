@@ -32,6 +32,7 @@ import PlotEvtObject as peo
 print('Import of the PlotEvt object modules: success')
 #from Modules_QUakeMD import *
 from Modules_QUakeMD import add_I02obsbin, SearchBestStartDepth, inversion_MHI0, read_empe2, weight_percentile
+from Modules_QUakeMD import PDF
 print('Import of the tool module: success')
 import WLSIC
 print('Import of the least square module: success')
@@ -88,27 +89,12 @@ class QUakeMD():
         self.writeOnLogFile("Observation File: " + Obsname)
         #self.writeOnLogFile("Parameter File: " + Parametername)
         
-        # Initialization of PDF parameters
+        
         self.nbre_prof_test = 25
         self.NSamples = 20
         
-        self.PdfNClassH = 50
-        self.PdfNClassM = 60
-        self.PdfNClassIo = 100
-        
-        self.PdfMinLogH = np.log10(self.depth_min_ref)
-        self.PdfMaxLogH = np.log10(self.depth_max_ref)
-        self.PdfMinMm = 2
-        self.PdfMaxMm = 8
-        self.PdfMinIo = 2
-        self.PdfMaxIo = 12
-
-        self.PdfGridSizeLogH = (self.PdfMaxLogH - self.PdfMinLogH) / float(self.PdfNClassH)
-        self.EchelleLogHRef = np.logspace(self.PdfMinLogH, self.PdfMaxLogH, self.PdfNClassH)
-        self.PdfGridSizeM = (self.PdfMaxMm - self.PdfMinMm) / float(self.PdfNClassM)
-        self.EchelleMRef = np.linspace(self.PdfMinMm, self.PdfMaxMm, self.PdfNClassM)
-        self.PdfGridSizeIo = (self.PdfMaxIo - self.PdfMinIo) / float(self.PdfNClassIo)
-        self.EchelleIoRef = np.linspace(self.PdfMinIo, self.PdfMaxIo, self.PdfNClassIo)
+        # Initialization of PDF parameters
+        self.all_PDF = PDF(self.depth_min_ref, self.depth_max_ref)
         
         #Definition standard deviations for I0 based on quality factor
         self.Std = {'A': 0.5, 'B': 0.5, 'C': 0.5, 'E': 0.750}
@@ -127,11 +113,6 @@ class QUakeMD():
         self.logfile.write(s + '\n')
         print(s)
         
-    def init_PDF(self):
-        PDF_HM = np.zeros((self.PdfNClassH, self.PdfNClassM))
-        PDF_HIo = np.zeros((self.PdfNClassH, self.PdfNClassIo))
-        PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
-        return PDF_HM, PDF_HIo, PDF_HMIo
     
     def save_isoseist(self, evt, Ic):
         unique_metbin = np.unique(self.listeIbin)
@@ -297,8 +278,7 @@ class QUakeMD():
         if abs(depth - self.depth_min_ref) < 0.001:
             StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
         return StdH_fin
-
-
+    
     def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
         self.writeOnLogFile("Id of the event : " + str(evt.evid))
@@ -307,8 +287,8 @@ class QUakeMD():
         self.writeOnLogFile("Maximal depth limit: " + str(self.depth_max_ref))
         self.writeOnLogFile("Sigma sampling :" + str(self.LimitForSamplingInStd))
         
-        # Initialization of PDF
-        PDF_HM, PDF_HIo, PDF_HMIo = self.init_PDF()
+        # # Initialization of PDF
+        # PDF_HM, PDF_HIo, PDF_HMIo = self.init_PDF()
         
         # Initialization of barycenter
         (big_somme,  Barycentre_Mag, Barycentre_LogH,
@@ -349,9 +329,7 @@ class QUakeMD():
             
             # Preparation of the data
             evt.Binning_Obs(8, Ic, method_bin=methode_bin) # Abritary 8 km depth
-            #StdI_0 = max([Std['A'], evt.QI0_inv])
-            #StdI_0 = np.sqrt(StdI_0/(0.1*Std['A']))
-            #ObsBin = add_I02obsbin(evt, 8, StdI_0) # Abritary 8 km depth
+
             
             # Initialization of figure with results of inversion of intensity data
             fig_intensity, ax, axMH_IPE, axcb = self.init_figintensity()
@@ -363,10 +341,9 @@ class QUakeMD():
             # Weight for barycenter calculus
             (poids_manquants_law, poids_presents_law) = np.zeros(2)
             # Initialization of PDF
-            PDF_HMLaw = np.zeros((self.PdfNClassH, self.PdfNClassM))
+            self.all_PDF.initPDFlaw()
             
             self.writeOnLogFile('Ic = ' + str(Ic))
-            
             inversion = 'BasedOnIobs'
                 
             # Update logfile
@@ -439,11 +416,13 @@ class QUakeMD():
                     self.writeOnLogFile(str(self.LimitForSamplingInStd))
                     self.writeOnLogFile('No solutions compatible with I0 found for this equation\n')    
                 else:
-                    poids_presents+=w_empe*Poids_branche
-                    poids_presents_law+=w_empe
                     # Normalization of the weights
                     Triplets['Weights'] = np.array(Triplets['Weights'])
                     Triplets['Weights'] = Triplets['Weights']/Triplets['Weights'].sum()
+                    
+                    poids_presents+=w_empe*Poids_branche
+                    poids_presents_law+=w_empe
+                    
                     # Attributing IPE's weight
                     Triplets['Weights'] = Triplets['Weights']*w_empe
                     # Barycenter computation for the IPEs in the .txt file
@@ -459,28 +438,7 @@ class QUakeMD():
                     Barycentre_LogH += np.sum(np.log10(np.array(Triplets['Profondeur']))*np.array(Triplets['Weights']))    
                     Barycentre_Io += np.sum(np.array(Triplets['Io'])*np.array(Triplets['Weights']))
                     # Storage of the space of solutions in a matrix for all IPEs and for each .txt files
-                    for Mt,Ht,It,ptriplet in zip(Triplets['Magnitude'],Triplets['Profondeur'],Triplets['Io'],Triplets['Weights']):
-                        indexH = round((np.log10(Ht)-self.PdfMinLogH)/self.PdfGridSizeLogH,0)        
-                        indexH = max([0.,indexH])
-                        diffH = abs(self.EchelleLogHRef-Ht)
-                        indexH = np.where(diffH==diffH.min())[0][0]
-                        
-                        indexM = round((Mt-self.PdfMinMm)/self.PdfGridSizeM,0)
-                        indexM = max([0.,indexM])
-                        diffM = abs(self.EchelleMRef-Mt)
-
-                        indexM = np.where(diffM==diffM.min())[0][0]
-
-                        indexIo = round((It-self.PdfMinIo)/self.PdfGridSizeIo,0)
-                        indexIo = max([0.,indexIo])
-                        diffIo = abs(self.EchelleIoRef-It)
-                        indexIo = np.where(diffIo==diffIo.min())[0][0]
-                
-                        PDF_HM[indexH][indexM] = PDF_HM[indexH][indexM] + ptriplet
-                        PDF_HMLaw[indexH][indexM] = PDF_HMLaw[indexH][indexM] + ptriplet/Poids_branche
-                        PDF_HIo[indexH][indexIo] = PDF_HIo[indexH][indexIo] + ptriplet
-                        PDF_HMIo[indexH][indexM][indexIo] = PDF_HMIo[indexH][indexM][indexIo] + ptriplet
-                        big_somme += ptriplet
+                    self.all_PDF.update_PDF(Triplets, Poids_branche)
                         
 
             # Write PDF file by law
@@ -489,7 +447,7 @@ class QUakeMD():
                 Barycentre_MagLaw = Barycentre_MagLaw/poids_presents_law
                 Barycentre_LogHLaw = Barycentre_LogHLaw/poids_presents_law
                 Barycentre_IoLaw = Barycentre_IoLaw/poids_presents_law
-                PDF_HMLaw = PDF_HMLaw/PDF_HMLaw.sum()
+                self.all_PDF.PDF_HMLaw = self.all_PDF.PDF_HMLaw/self.all_PDF.PDF_HMLaw.sum()
                 # MAJ du logfile
                 self.writeOnLogFile('Barycenter of the group of IPE:')
                 self.writeOnLogFile('M = %.2f; H = %.2f; I0 = %.2f' % (Barycentre_MagLaw, 10**Barycentre_LogHLaw, Barycentre_IoLaw))
@@ -512,15 +470,15 @@ class QUakeMD():
                 fileLaw.write('Barycenter M:' + str(round(Barycentre_MagLaw,2))+'\n')
                 fileLaw.write('Barycenter H:' + str(round(10**Barycentre_LogHLaw,2))+'\n')
                 fileLaw.write('H[km]\tMag\tPDF\n')
-                for jj in range(PDF_HMLaw.shape[1]):    
-                    for ii in range(PDF_HMLaw.shape[0]):
-                        magni = self.EchelleMRef[jj]
-                        h = self.EchelleLogHRef[ii]
-                        if PDF_HMLaw[ii][jj]>10**-6:
-                            fileLaw.write('%0.4f\t%0.4f\t%0.6f\n' % (h,magni,PDF_HMLaw[ii][jj]))
+                for jj in range(self.all_PDF.PDF_HMLaw.shape[1]):    
+                    for ii in range(self.all_PDF.PDF_HMLaw.shape[0]):
+                        magni = self.all_PDF.EchelleMRef[jj]
+                        h = self.all_PDF.EchelleLogHRef[ii]
+                        if self.all_PDF.PDF_HMLaw[ii][jj]>10**-6:
+                            fileLaw.write('%0.4f\t%0.4f\t%0.6f\n' % (h,magni,self.all_PDF.PDF_HMLaw[ii][jj]))
                 fileLaw.close()
             except ZeroDivisionError:
-                PDF_HMLaw = PDF_HMLaw/PDF_HMLaw.sum()
+                self.all_PDF.PDF_HMLaw = self.all_PDF.PDF_HMLaw/self.all_PDF.PDF_HMLaw.sum()
                 self.writeOnLogFile('Line of protocole:')
                 self.writeOnLogFile(str(Poids_branche) +", " + str(methode_bin))
                 self.writeOnLogFile('could not find an Io compatible result')
@@ -533,9 +491,10 @@ class QUakeMD():
                 Barycentre_Mag = Barycentre_Mag/poids_presents
                 Barycentre_LogH = Barycentre_LogH/poids_presents
                 Barycentre_Io = Barycentre_Io/poids_presents 
-                PDF_HM = PDF_HM/PDF_HM.sum()
-                PDF_HIo = PDF_HIo/PDF_HIo.sum()
-                PDF_HMIo = PDF_HMIo/PDF_HMIo.sum()
+                self.all_PDF.normalize_PDF()
+                # self.all_PDF.PDF_HM = self.all_PDF.PDF_HM/self.all_PDF.PDF_HM.sum()
+                # self.all_PDF.PDF_HIo = self.all_PDF.PDF_HIo/self.all_PDF.sum()
+                # self.all_PDF.PDF_HMIo = self.all_PDF.PDF_HMIo/self.all_PDF.PDF_HMIo.sum()
         except ZeroDivisionError:
             self.writeOnLogFile('No result compatible with I0 could be found')
             self.writeOnLogFile('Last solution computed:')
@@ -561,15 +520,15 @@ class QUakeMD():
         prof_plot = []
         mag_plot = []
         poids_plot = []
-        for jj in range(PDF_HM.shape[1]):    
-            for ii in range(PDF_HM.shape[0]):
-                magni = self.EchelleMRef[jj]
-                h = self.EchelleLogHRef[ii]
-                if PDF_HM[ii][jj]>10**-6:
+        for jj in range(self.all_PDF.PDF_HM.shape[1]):    
+            for ii in range(self.all_PDF.PDF_HM.shape[0]):
+                magni = self.all_PDF.EchelleMRef[jj]
+                h = self.all_PDF.EchelleLogHRef[ii]
+                if self.all_PDF.PDF_HM[ii][jj]>10**-6:
                     prof_plot.append(h)
                     mag_plot.append(magni)
-                    poids_plot.append(PDF_HM[ii][jj])
-                    filePDF.write('%0.4f\t%0.4f\t%0.6f\n' % (h,magni,PDF_HM[ii][jj]))
+                    poids_plot.append(self.all_PDF.PDF_HM[ii][jj])
+                    filePDF.write('%0.4f\t%0.4f\t%0.6f\n' % (h,magni,self.all_PDF.PDF_HM[ii][jj]))
         filePDF.close()
         
         # weighted percentiles
@@ -598,18 +557,18 @@ class QUakeMD():
         mag_plot = []
         io_plot = []
         poids_plot = []
-        for kk in range(PDF_HMIo.shape[2]):
-            for jj in range(PDF_HMIo.shape[1]):    
-                for ii in range(PDF_HMIo.shape[0]):
-                    io = self.EchelleIoRef[kk]
-                    magni = self.EchelleMRef[jj]
-                    h = self.EchelleLogHRef[ii]
-                    if PDF_HMIo[ii][jj][kk]>10**-6:
+        for kk in range(self.all_PDF.PDF_HMIo.shape[2]):
+            for jj in range(self.all_PDF.PDF_HMIo.shape[1]):    
+                for ii in range(self.all_PDF.PDF_HMIo.shape[0]):
+                    io = self.all_PDF.EchelleIoRef[kk]
+                    magni = self.all_PDF.EchelleMRef[jj]
+                    h = self.all_PDF.EchelleLogHRef[ii]
+                    if self.all_PDF.PDF_HMIo[ii][jj][kk]>10**-6:
                         prof_plot.append(h)
                         mag_plot.append(magni)
                         io_plot.append(io)
-                        poids_plot.append(PDF_HMIo[ii][jj][kk])
-                        fileLaw.write('%0.4f\t%0.4f\t%0.4f\t%0.6f\n' % (h,magni,io,PDF_HMIo[ii][jj][kk]))
+                        poids_plot.append(self.all_PDF.PDF_HMIo[ii][jj][kk])
+                        fileLaw.write('%0.4f\t%0.4f\t%0.4f\t%0.6f\n' % (h,magni,io,self.all_PDF.PDF_HMIo[ii][jj][kk]))
         fileLaw.close()
         # Plot de la PDF en 3D
         fig = plt.figure()
@@ -635,15 +594,15 @@ class QUakeMD():
         fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
         fileLaw.write('Barycenter H:' + str(round(10**Barycentre_LogH,2))+'\n')
         fileLaw.write('H[km]\tMag\tPDF\n')
-        for ii in range(PDF_HIo.shape[0]):
-            for jj in range(PDF_HIo.shape[1]):
-                h = self.EchelleLogHRef[ii]
-                Int0 = self.EchelleIoRef[jj]
-                if PDF_HIo[ii][jj]>0.000001:
+        for ii in range(self.all_PDF.PDF_HIo.shape[0]):
+            for jj in range(self.all_PDF.PDF_HIo.shape[1]):
+                h = self.all_PDF.EchelleLogHRef[ii]
+                Int0 = self.all_PDF.EchelleIoRef[jj]
+                if self.all_PDF.PDF_HIo[ii][jj]>0.000001:
                     prof_plot.append(h)
                     io_plot.append(Int0)
-                    poids_plot.append(PDF_HIo[ii][jj])
-                    fileLaw.write('%0.4f\t%0.4f\t%0.6f\n' % (h,Int0,PDF_HIo[ii][jj]))
+                    poids_plot.append(self.all_PDF.PDF_HIo[ii][jj])
+                    fileLaw.write('%0.4f\t%0.4f\t%0.6f\n' % (h,Int0,self.all_PDF.PDF_HIo[ii][jj]))
         fileLaw.close()
         # Calcul des percentiles
         poids_plot = np.array(poids_plot)

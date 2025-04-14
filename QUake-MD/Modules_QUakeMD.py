@@ -21,6 +21,61 @@ Std ={'A':0.5,'B':0.5,'C':0.5,'E':0.750}
 #Equivalent standard deviation is equal to sqrt(1/4)=0.5
 Stdobs ={'A':0.5,'B':0.577,'C':0.710}
 
+class PDF():
+    def __init__(self, depth_min_ref, depth_max_ref):
+        self.PdfNClassH = 50
+        self.PdfNClassM = 60
+        self.PdfNClassIo = 100
+        
+        self.PdfMinLogH = np.log10(depth_min_ref)
+        self.PdfMaxLogH = np.log10(depth_max_ref)
+        self.PdfMinMm = 2
+        self.PdfMaxMm = 8
+        self.PdfMinIo = 2
+        self.PdfMaxIo = 12
+
+        self.PdfGridSizeLogH = (self.PdfMaxLogH - self.PdfMinLogH) / float(self.PdfNClassH)
+        self.EchelleLogHRef = np.logspace(self.PdfMinLogH, self.PdfMaxLogH, self.PdfNClassH)
+        self.PdfGridSizeM = (self.PdfMaxMm - self.PdfMinMm) / float(self.PdfNClassM)
+        self.EchelleMRef = np.linspace(self.PdfMinMm, self.PdfMaxMm, self.PdfNClassM)
+        self.PdfGridSizeIo = (self.PdfMaxIo - self.PdfMinIo) / float(self.PdfNClassIo)
+        self.EchelleIoRef = np.linspace(self.PdfMinIo, self.PdfMaxIo, self.PdfNClassIo)
+        
+        self.PDF_HM = np.zeros((self.PdfNClassH, self.PdfNClassM))
+        self.PDF_HIo = np.zeros((self.PdfNClassH, self.PdfNClassIo))
+        self.PDF_HMIo = np.zeros((self.PdfNClassH, self.PdfNClassM, self.PdfNClassIo))
+    
+    def initPDFlaw(self):
+        self.PDF_HMLaw = np.zeros((self.PdfNClassH, self.PdfNClassM))
+    
+    def update_PDF(self, Triplets, Poids_branche):
+        for Mt,Ht,It,ptriplet in zip(Triplets['Magnitude'],Triplets['Profondeur'],Triplets['Io'],Triplets['Weights']):
+            indexH = round((np.log10(Ht)-self.PdfMinLogH)/self.PdfGridSizeLogH,0)        
+            indexH = max([0.,indexH])
+            diffH = abs(self.EchelleLogHRef-Ht)
+            indexH = np.where(diffH==diffH.min())[0][0]
+            
+            indexM = round((Mt-self.PdfMinMm)/self.PdfGridSizeM,0)
+            indexM = max([0.,indexM])
+            diffM = abs(self.EchelleMRef-Mt)
+            indexM = np.where(diffM==diffM.min())[0][0]
+
+            indexIo = round((It-self.PdfMinIo)/self.PdfGridSizeIo,0)
+            indexIo = max([0.,indexIo])
+            diffIo = abs(self.EchelleIoRef-It)
+            indexIo = np.where(diffIo==diffIo.min())[0][0]
+    
+            self.PDF_HM[indexH][indexM] = self.PDF_HM[indexH][indexM] + ptriplet
+            self.PDF_HMLaw[indexH][indexM] = self.PDF_HMLaw[indexH][indexM] + ptriplet/Poids_branche
+            self.PDF_HIo[indexH][indexIo] = self.PDF_HIo[indexH][indexIo] + ptriplet
+            self.PDF_HMIo[indexH][indexM][indexIo] = self.PDF_HMIo[indexH][indexM][indexIo] + ptriplet
+        
+    def normalize_PDF(self):
+        self.PDF_HM = self.PDF_HM/self.PDF_HM.sum()
+        self.PDF_HIo = self.PDF_HIo/self.PDF_HIo.sum()
+        self.PDF_HMIo = self.PDF_HMIo/self.PDF_HMIo.sum()
+            
+
 
 
 def read_empe2(Nomfichier):
