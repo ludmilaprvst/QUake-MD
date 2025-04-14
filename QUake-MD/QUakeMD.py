@@ -464,18 +464,8 @@ class QUakeMD():
                                         bbox_inches='tight')
                 # Save the IPE's .txt group space of solutions
                 fileLaw = open(self.output_folder+'/'+str(evt.evid)+'/Law_'+str(index)+'_'+ methode_bin+ '_HM.txt', 'w')
-                fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
-                fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
-                fileLaw.write('Barycenter Io:' + str(round(Barycentre_IoLaw,2))+'\n')
-                fileLaw.write('Barycenter M:' + str(round(Barycentre_MagLaw,2))+'\n')
-                fileLaw.write('Barycenter H:' + str(round(10**Barycentre_LogHLaw,2))+'\n')
-                fileLaw.write('H[km]\tMag\tPDF\n')
-                for jj in range(self.all_PDF.PDF_HMLaw.shape[1]):    
-                    for ii in range(self.all_PDF.PDF_HMLaw.shape[0]):
-                        magni = self.all_PDF.EchelleMRef[jj]
-                        h = self.all_PDF.EchelleLogHRef[ii]
-                        if self.all_PDF.PDF_HMLaw[ii][jj]>10**-6:
-                            fileLaw.write('%0.4f\t%0.4f\t%0.6f\n' % (h,magni,self.all_PDF.PDF_HMLaw[ii][jj]))
+                self.write_header_PDF(fileLaw, evt, Barycentre_IoLaw, Barycentre_MagLaw, Barycentre_LogHLaw)
+                self.write_HMPDF_files(fileLaw, self.all_PDF.PDF_HMLaw)
                 fileLaw.close()
             except ZeroDivisionError:
                 self.all_PDF.PDF_HMLaw = self.all_PDF.PDF_HMLaw/self.all_PDF.PDF_HMLaw.sum()
@@ -492,9 +482,6 @@ class QUakeMD():
                 Barycentre_LogH = Barycentre_LogH/poids_presents
                 Barycentre_Io = Barycentre_Io/poids_presents 
                 self.all_PDF.normalize_PDF()
-                # self.all_PDF.PDF_HM = self.all_PDF.PDF_HM/self.all_PDF.PDF_HM.sum()
-                # self.all_PDF.PDF_HIo = self.all_PDF.PDF_HIo/self.all_PDF.sum()
-                # self.all_PDF.PDF_HMIo = self.all_PDF.PDF_HMIo/self.all_PDF.PDF_HMIo.sum()
         except ZeroDivisionError:
             self.writeOnLogFile('No result compatible with I0 could be found')
             self.writeOnLogFile('Last solution computed:')
@@ -508,108 +495,40 @@ class QUakeMD():
         self.writeOnLogFile('M=%.2f;H=%.2f;I0=%.2f\n' % (Barycentre_Mag, 10**Barycentre_LogH, Barycentre_Io))
         # Finalisation et sauvegarde de la figure de controle des solutions avec les intensites
        
-        # save space of solution in HM space
+        # Save and plot space of solution in HM space
         filePDF = open(self.output_folder+'/'+str(evt.evid)+'/HM.txt','w')
-        filePDF.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
-        filePDF.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
-        filePDF.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
-        filePDF.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
-        filePDF.write('Barycenter H:' + str(round(10**Barycentre_LogH,2))+'\n')
-        filePDF.write('H[km]\tMag\tPDF\n')
-        
-        prof_plot = []
-        mag_plot = []
-        poids_plot = []
-        for jj in range(self.all_PDF.PDF_HM.shape[1]):    
-            for ii in range(self.all_PDF.PDF_HM.shape[0]):
-                magni = self.all_PDF.EchelleMRef[jj]
-                h = self.all_PDF.EchelleLogHRef[ii]
-                if self.all_PDF.PDF_HM[ii][jj]>10**-6:
-                    prof_plot.append(h)
-                    mag_plot.append(magni)
-                    poids_plot.append(self.all_PDF.PDF_HM[ii][jj])
-                    filePDF.write('%0.4f\t%0.4f\t%0.6f\n' % (h,magni,self.all_PDF.PDF_HM[ii][jj]))
+        self.write_header_PDF(filePDF, evt, Barycentre_Io, Barycentre_Mag, Barycentre_LogH)
+        prof_plot, mag_plot, poids_plot = self.write_HMPDF_files(filePDF, self.all_PDF.PDF_HM)
         filePDF.close()
+        self.plot_HM(evt, 1, 25, prof_plot, mag_plot, poids_plot,
+                     Barycentre_Mag, empe)
         
-        # weighted percentiles
+        # Weighted percentiles
         poids_plot = np.array(poids_plot)
         percentile16_prof = weight_percentile(prof_plot, poids_plot, 0.16)
         percentile84_prof = weight_percentile(prof_plot, poids_plot, 0.84)
 
         percentile16_mag = weight_percentile(mag_plot, poids_plot, 0.16)
         percentile84_mag = weight_percentile(mag_plot, poids_plot, 0.84)
-
-        # Plot MH space of solutions
         
-        self.plot_HM(evt, 1, 25,
-                     prof_plot, mag_plot, poids_plot,
-                     Barycentre_Mag, empe)
-        
-        # Enregistrement de la PDF HMIo
-        fileLaw = open(self.output_folder+'/'+str(evt.evid)+'/HMIo.txt','w')
-        fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
-        fileLaw.write(', I0 from catalogue = ' + str(round(evt.Io_ini, 1)) +'\n')
-        fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
-        fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
-        fileLaw.write('Barycenter H:' + str(round(10**Barycentre_LogH,2))+'\n')
-        fileLaw.write('H[km]\tMag\tIo\tPDF\n')
-        prof_plot = []
-        mag_plot = []
-        io_plot = []
-        poids_plot = []
-        for kk in range(self.all_PDF.PDF_HMIo.shape[2]):
-            for jj in range(self.all_PDF.PDF_HMIo.shape[1]):    
-                for ii in range(self.all_PDF.PDF_HMIo.shape[0]):
-                    io = self.all_PDF.EchelleIoRef[kk]
-                    magni = self.all_PDF.EchelleMRef[jj]
-                    h = self.all_PDF.EchelleLogHRef[ii]
-                    if self.all_PDF.PDF_HMIo[ii][jj][kk]>10**-6:
-                        prof_plot.append(h)
-                        mag_plot.append(magni)
-                        io_plot.append(io)
-                        poids_plot.append(self.all_PDF.PDF_HMIo[ii][jj][kk])
-                        fileLaw.write('%0.4f\t%0.4f\t%0.4f\t%0.6f\n' % (h,magni,io,self.all_PDF.PDF_HMIo[ii][jj][kk]))
-        fileLaw.close()
-        # Plot de la PDF en 3D
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(prof_plot, mag_plot, io_plot, c=poids_plot, cmap='winter_r')
-        ax.set_xlim([1, 25])
-        ax.set_ylim([min(mag_plot)-1, max(mag_plot)+1])
-        ax.set_zlim([4, 10])
-        ax.set_xlabel('Depth [km]')
-        ax.set_ylabel('Magnitude')
-        ax.set_zlabel('Io')
-        plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HMIo.png') 
-        plt.show()
+        # Enregistrement et plot de la PDF HMIo
+        filePDF = open(self.output_folder+'/'+str(evt.evid)+'/HMIo.txt','w')
+        self.write_header_PDF(filePDF, evt, Barycentre_Io, Barycentre_Mag, Barycentre_LogH)
+        prof_plot, mag_plot, io_plot, poids_plot = self.write_HMI0_files(filePDF, self.all_PDF.PDF_HMIo)
+        filePDF.close()
+        self.plot_HMI0(evt, prof_plot, mag_plot, io_plot, poids_plot)
         
         # Plot et sauvegarde de la PDF HIo 
-        prof_plot = []
-        io_plot = []
-        poids_plot = []
-        fileLaw = open(self.output_folder+'/'+str(evt.evid)+'/HIo.txt','w')
-        fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
-        fileLaw.write(', I0 from catalogue = '+ str(round(evt.Io_ini, 1)) +'\n')
-        fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
-        fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
-        fileLaw.write('Barycenter H:' + str(round(10**Barycentre_LogH,2))+'\n')
-        fileLaw.write('H[km]\tMag\tPDF\n')
-        for ii in range(self.all_PDF.PDF_HIo.shape[0]):
-            for jj in range(self.all_PDF.PDF_HIo.shape[1]):
-                h = self.all_PDF.EchelleLogHRef[ii]
-                Int0 = self.all_PDF.EchelleIoRef[jj]
-                if self.all_PDF.PDF_HIo[ii][jj]>0.000001:
-                    prof_plot.append(h)
-                    io_plot.append(Int0)
-                    poids_plot.append(self.all_PDF.PDF_HIo[ii][jj])
-                    fileLaw.write('%0.4f\t%0.4f\t%0.6f\n' % (h,Int0,self.all_PDF.PDF_HIo[ii][jj]))
-        fileLaw.close()
+        filePDF = open(self.output_folder+'/'+str(evt.evid)+'/HIo.txt','w')
+        self.write_header_PDF(filePDF, evt, Barycentre_Io, Barycentre_Mag, Barycentre_LogH)
+        prof_plot, io_plot, poids_plot = self.write_HI0_files(filePDF, self.all_PDF.PDF_HIo)
+        filePDF.close()
+        self.plot_HI0(evt, io_plot, prof_plot, poids_plot, 1, 25)
+        
         # Calcul des percentiles
         poids_plot = np.array(poids_plot)
         percentile16_io = weight_percentile(io_plot, poids_plot, 0.16)
         percentile84_io = weight_percentile(io_plot, poids_plot, 0.84)
-        
-        self.plot_HI0(evt, io_plot, prof_plot, poids_plot, 1, 25)
 
         if not os.path.isfile(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt'):
             file_temp = open(self.output_folder+'/'+'file_temp_'+ self.tag +'.txt', 'w')
@@ -678,7 +597,20 @@ class QUakeMD():
 
         plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HM.png')  
         plt.show()
-            
+        
+    def plot_HMI0(self, evt, prof_plot, mag_plot, io_plot, poids_plot):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(prof_plot, mag_plot, io_plot, c=poids_plot, cmap='winter_r')
+        ax.set_xlim([1, 25])
+        ax.set_ylim([min(mag_plot)-1, max(mag_plot)+1])
+        ax.set_zlim([4, 10])
+        ax.set_xlabel('Depth [km]')
+        ax.set_ylabel('Magnitude')
+        ax.set_zlabel('Io')
+        plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HMIo.png') 
+        plt.show()  
+        
     def plot_HI0(self, evt, io_plot, prof_plot, poids_plot,
                  depth_min, depth_max):
         # Figure PDF HIo
@@ -711,3 +643,61 @@ class QUakeMD():
         plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HIo.png')  
         plt.show()
         
+    def write_header_PDF(self, fileLaw, evt, Barycentre_Io, Barycentre_Mag, Barycentre_LogH):
+        fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))
+        fileLaw.write(', I0 from catalogue = '+ str(round(evt.Io_ini, 1)) +'\n')
+        fileLaw.write('Barycenter Io:' + str(round(Barycentre_Io,2))+'\n')
+        fileLaw.write('Barycenter M:' + str(round(Barycentre_Mag,2))+'\n')
+        fileLaw.write('Barycenter H:' + str(round(10**Barycentre_LogH,2))+'\n')
+        
+    def write_HMPDF_files(self, filePDF, PDF_HM):
+        filePDF.write('H[km]\tMag\tPDF\n')
+        prof_plot = []
+        mag_plot = []
+        poids_plot = []
+        for jj in range(PDF_HM.shape[1]):    
+            for ii in range(PDF_HM.shape[0]):
+                magni = self.all_PDF.EchelleMRef[jj]
+                h = self.all_PDF.EchelleLogHRef[ii]
+                if PDF_HM[ii][jj]>10**-6:
+                    prof_plot.append(h)
+                    mag_plot.append(magni)
+                    poids_plot.append(PDF_HM[ii][jj])
+                    filePDF.write('%0.4f\t%0.4f\t%0.6f\n' % (h, magni, PDF_HM[ii][jj]))
+        return prof_plot, mag_plot, poids_plot
+    
+    def write_HI0_files(self, filePDF, PDF_HIo):
+        prof_plot = []
+        io_plot = []
+        poids_plot = []
+        filePDF.write('H[km]\Io\tPDF\n')
+        for ii in range(PDF_HIo.shape[0]):
+            for jj in range(PDF_HIo.shape[1]):
+                h = self.all_PDF.EchelleLogHRef[ii]
+                Int0 = self.all_PDF.EchelleIoRef[jj]
+                if PDF_HIo[ii][jj]>0.000001:
+                    prof_plot.append(h)
+                    io_plot.append(Int0)
+                    poids_plot.append(PDF_HIo[ii][jj])
+                    filePDF.write('%0.4f\t%0.4f\t%0.6f\n' % (h, Int0, PDF_HIo[ii][jj]))
+        return prof_plot, io_plot, poids_plot
+    
+    def write_HMI0_files(self, filePDF, PDF_HMIo):
+        filePDF.write('H[km]\tMag\tIo\tPDF\n')
+        prof_plot = []
+        mag_plot = []
+        io_plot = []
+        poids_plot = []
+        for kk in range(PDF_HMIo.shape[2]):
+            for jj in range(PDF_HMIo.shape[1]):    
+                for ii in range(PDF_HMIo.shape[0]):
+                    io = self.all_PDF.EchelleIoRef[kk]
+                    magni = self.all_PDF.EchelleMRef[jj]
+                    h = self.all_PDF.EchelleLogHRef[ii]
+                    if PDF_HMIo[ii][jj][kk]>10**-6:
+                        prof_plot.append(h)
+                        mag_plot.append(magni)
+                        io_plot.append(io)
+                        poids_plot.append(PDF_HMIo[ii][jj][kk])
+                        filePDF.write('%0.4f\t%0.4f\t%0.4f\t%0.6f\n' % (h, magni, io, PDF_HMIo[ii][jj][kk]))
+        return prof_plot, mag_plot, io_plot, poids_plot
