@@ -162,7 +162,68 @@ class QUakeMD():
         axMH_IPE.set_ylim([3, 7.5])
         return fig_intensity, ax, axMH_IPE, axcb
 
-    
+    def plot_figintensity(self, ax, axMH_IPE, axcb, evt, DataObs, depth, mag, I0, 
+                          methode_bin, empe, C1, C2, Beta, gamma, comptlaw):
+        depth_max_cb_plot = 25
+        depth_min_cb_plot = 1
+        normcb = mpl.colors.Normalize(vmin=self.depth_min_ref, vmax=self.depth_max_ref)
+        normcb = mpl.colors.Normalize(vmin=depth_min_cb_plot, vmax=depth_max_cb_plot)
+        cmapcb = mpl.cm.get_cmap('viridis_r')
+        couleur_depth = cmapcb(normcb(depth))
+        maxdepi = DataObs['Depi'].max()
+        
+        evt.Binning_Obs(depth, evt.Ic, method_bin=methode_bin)
+        ObsBin = evt.ObsBinn
+        
+        titre_subplt = os.path.basename(empe)[:-4]
+        
+        axMH_IPE.plot(depth, mag, 'o', color = couleur_depth)
+        ax.semilogx(DataObs['Depi'].values, DataObs['Iobs'].values,
+                    '.', color='Gray', markerfacecolor='None',
+                    markersize=2)
+        Depi_pour_plot = np.logspace(-1, 3, 1000)
+        Hypo_pour_plot = np.sqrt(Depi_pour_plot**2 + depth**2)
+        
+        Ipred = C1 + C2*mag + Beta*np.log10(Hypo_pour_plot) + gamma*Hypo_pour_plot
+        Depi_bin = np.sqrt(ObsBin['Hypo']**2 - depth**2)
+        
+        ax.semilogx(Depi_bin, ObsBin['I'].values,
+                    'd', color = couleur_depth, markeredgecolor='k')
+        
+        ax.errorbar(Depi_bin, ObsBin['I'].values, yerr=ObsBin['StdI'].values,
+                    fmt='d', color=couleur_depth, mec='k')
+        self.writeOnLogFile('I0 inversion, I0 predit')
+        self.writeOnLogFile(str(I0) + ', '+str( C1 + C2*mag + Beta*np.log10(depth) + gamma*depth))
+        ax.semilogx(0.1, I0, 's', color='Red')
+
+        if comptlaw == 1:
+            ax.fill_between([0.1, 1000], evt.Io_inf, evt.Io_sup,
+                            color='PaleVioletRed', alpha=0.1)
+
+        ax.semilogx(Depi_pour_plot, Ipred, color=couleur_depth)
+        
+        ax.set_title(titre_subplt)
+        ax.set_xlim([1, maxdepi+100])
+        ax.set_ylim([2, evt.Io_sup+1])
+       
+        axMH_IPE.set_title(titre_subplt)
+        axMH_IPE.set_xlim([self.depth_min_ref-1, self.depth_max_ref+2])
+        axMH_IPE.set_xlim([depth_min_cb_plot-1, depth_max_cb_plot+2])
+        
+        
+        cb = mpl.colorbar.ColorbarBase(axcb,
+                                       cmap=cmapcb,
+                                       norm=normcb,
+                                       orientation='vertical')
+        cb.set_label('Depth [km]', size=12)
+        cb.set_ticks(np.arange(self.depth_min_ref, self.depth_max_ref + 5, 5))
+        cb.ax.invert_yaxis()
+        ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
+        locmaj = mpl.ticker.LogLocator(base=10.0, subs=(0.1, 0.2, 0.5, 1, 2, 5, 10 ))
+        ax.xaxis.set_major_locator(locmaj)
+        ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
+        return ax, axMH_IPE, axcb
+        
     def algorithm_QUakeMD(self, evt):
         self.writeOnLogFile("\n")
         self.writeOnLogFile("Id of the event : " + str(evt.evid))
@@ -248,169 +309,111 @@ class QUakeMD():
                 # Weight control
                 sumpoidsEMPE += w_empe
                 
-                if inversion == 'BasedOnIobs':
-                    # Initialization of the inverted parameters
-                    I0_ini = evt.Io_ini
-                    #evt.Io_inv = I0_ini
-                    evt.add_invMHI0_variables(QI0_inv, I0_ini, Ic)
-                    start_depth, start_mag = SearchBestStartDepth(evt, methode_bin,
-                                                                  Beta, C1, C2, gamma,
-                                                                  self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
-                    #print(start_depth, start_mag)
-                    if not start_depth:
-                        Singular = True
-                        start_depth = 10
-                        start_mag = (I0_ini - (C1 + Beta * np.log10(start_depth) + gamma * start_depth)) / C2
-                        inversion = 'BasedOnIo'
-                        self.writeOnLogFile("No start depth, change inversion")
-                    
-                    # Update logfile
-                    self.writeOnLogFile('Inversion: ' + str(inversion))
-                    self.writeOnLogFile('I = ' + str(C1) + ' + ' + str(C2) + 'M ' + str(Beta) + 'log10(Dhypo) + ' + str(gamma) + 'Dhypo')
-                    # Inversion of M and H (in Modules_QUakeMD)
-                    (mag, depth, I0, StdM_fin,
-                     StdH_fin, evt) = inversion_MHI0(evt, methode_bin, 
-                                                     C1, C2, Beta, gamma,
-                                                     start_depth, start_mag, 
-                                                     self.depth_min_ref, self.depth_max_ref,
-                                                     self.imposed_depth, self.I0_option)
-                    try:
-                        StdM_fin = StdM_fin[0]
-                    except TypeError:
-                        pass
-                    try:
-                        StdH_fin = StdH_fin[0]
-                    except TypeError:
-                        pass
-                    self.index_result += 1
-                    
-                    # Update logfile
-                    self.writeOnLogFile('M = %.2f; H = %.2f; I0=%.f' %(mag, depth, I0))
-                    self.writeOnLogFile('StdM = %.2f; StdH = %.2f' %(StdM_fin, StdH_fin))
-                    
-                    # Control figure of the IPE fit to the intensity decrease
-                    depth_max_cb_plot = 25
-                    depth_min_cb_plot = 1
-                    normcb = mpl.colors.Normalize(vmin=self.depth_min_ref, vmax=self.depth_max_ref)
-                    normcb = mpl.colors.Normalize(vmin=depth_min_cb_plot, vmax=depth_max_cb_plot)
-                    cmapcb = mpl.cm.get_cmap('viridis_r')
-                    couleur_depth = cmapcb(normcb(depth))
-                    maxdepi = DataObs['Depi'].max()
-                    
-                    evt.Binning_Obs(depth, evt.Ic, method_bin=methode_bin)
-                    ObsBin = evt.ObsBinn
-                    
-                    titre_subplt = os.path.basename(empe)[:-4]
-                    
-                    axMH_IPE.plot(depth, mag, 'o', color = couleur_depth)
-                    ax.semilogx(DataObs['Depi'].values, DataObs['Iobs'].values,
-                                '.', color='Gray', markerfacecolor='None',
-                                markersize=2)
-                    Depi_pour_plot = np.logspace(-1, 3, 1000)
-                    Hypo_pour_plot = np.sqrt(Depi_pour_plot**2 + depth**2)
-                    
-                    Ipred = C1 + C2*mag + Beta*np.log10(Hypo_pour_plot) + gamma*Hypo_pour_plot
-                    Depi_bin = np.sqrt(ObsBin['Hypo']**2 - depth**2)
-                    
-                    ax.semilogx(Depi_bin, ObsBin['I'].values,
-                                'd', color = couleur_depth, markeredgecolor='k')
-                    
-                    ax.errorbar(Depi_bin, ObsBin['I'].values, yerr=ObsBin['StdI'].values,
-                                fmt='d', color=couleur_depth, mec='k')
-                    self.writeOnLogFile('I0 inversion, I0 predit')
-                    self.writeOnLogFile(str(I0) + ', '+str( C1 + C2*mag + Beta*np.log10(depth) + gamma*depth))
-                    ax.semilogx(0.1, I0, 's', color='Red')
 
-                    if comptlaw == 1:
-                        ax.fill_between([0.1, 1000], evt.Io_inf, evt.Io_sup,
-                                        color='PaleVioletRed', alpha=0.1)
+                # Initialization of the inverted parameters
+                I0_ini = evt.Io_ini
+                #evt.Io_inv = I0_ini
+                evt.add_invMHI0_variables(QI0_inv, I0_ini, Ic)
+                start_depth, start_mag = SearchBestStartDepth(evt, methode_bin,
+                                                              Beta, C1, C2, gamma,
+                                                              self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
+                #print(start_depth, start_mag)
+                if not start_depth:
+                    Singular = True
+                    start_depth = 10
+                    start_mag = (I0_ini - (C1 + Beta * np.log10(start_depth) + gamma * start_depth)) / C2
+                    #inversion = 'BasedOnIo'
+                    self.writeOnLogFile("No start depth, change inversion")
+                
+                # Update logfile
+                self.writeOnLogFile('Inversion: ' + str(inversion))
+                self.writeOnLogFile('I = ' + str(C1) + ' + ' + str(C2) + 'M ' + str(Beta) + 'log10(Dhypo) + ' + str(gamma) + 'Dhypo')
+                # Inversion of M and H (in Modules_QUakeMD)
+                (mag, depth, I0, StdM_fin,
+                 StdH_fin, evt) = inversion_MHI0(evt, methode_bin, 
+                                                 C1, C2, Beta, gamma,
+                                                 start_depth, start_mag, 
+                                                 self.depth_min_ref, self.depth_max_ref,
+                                                 self.imposed_depth, self.I0_option)
+                try:
+                    StdM_fin = StdM_fin[0]
+                except TypeError:
+                    pass
+                try:
+                    StdH_fin = StdH_fin[0]
+                except TypeError:
+                    pass
+                self.index_result += 1
+                
+                # Update logfile
+                self.writeOnLogFile('M = %.2f; H = %.2f; I0=%.f' %(mag, depth, I0))
+                self.writeOnLogFile('StdM = %.2f; StdH = %.2f' %(StdM_fin, StdH_fin))
+                
+                # Control figure of the IPE fit to the intensity decrease
+                ax, axMH_IPE, axcb = self.plot_figintensity(ax, axMH_IPE, axcb,  evt, DataObs, depth, mag, I0, 
+                                      methode_bin, empe, C1, C2, Beta, gamma, comptlaw)
+                
+                # Avoiding too small values of H sigma
+                if abs(depth - self.depth_max_ref) < 0.001:
+                    StdH_fin = max([StdH_fin, 5. / self.LimitForSamplingInStd])
+                if abs(depth - self.depth_min_ref) < 0.001:
+                    StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
+                # Storage of the IPEs central values and associated sigmas
+                self.result_by_EMPE.loc[self.index_result] = [evt.evid, methode_bin, C1, C2, Beta, gamma, mag,
+                                   StdM_fin, depth, StdH_fin, I0]
+                # I0 filtering of the gaussian space of solutions
+                dM = self.LimitForSamplingInStd * StdM_fin / float(self.NSamples)
+                dH = self.LimitForSamplingInStd * StdH_fin / float(self.NSamples)
+                if dH == 0:
+                    dH = 0.25
+                try:
+                    Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
+                    Hexp_min = max([self.depth_min_ref, depth - self.LimitForSamplingInStd * StdH_fin])
+                    Hexp_max = min([self.depth_max_ref, depth + self.LimitForSamplingInStd * StdH_fin])
+                    Hexplore = np.linspace(Hexp_min, Hexp_max, self.NSamples)
+                    
+                    sommewM = 0
+                    ntest_explore = len(Mexplore)*len(Hexplore)
+                    
+                    for Mm in Mexplore:
+                        wM = np.exp(-0.5*((Mm-mag)/StdM_fin)**2) 
+                        sommewM += wM
+                        sommewH = 0
+                        for Hm in Hexplore:                    
+                            wH = np.exp(-0.5*((Hm-depth)/StdH_fin)**2)
+                            sommewH += wH
+                            if Hm > self.depth_max_ref:
+                                Hm = self.depth_max_ref
+                            if Hm < self.depth_min_ref:
+                                Hm = self.depth_min_ref
 
-                    ax.semilogx(Depi_pour_plot, Ipred, color=couleur_depth)
-                    
-                    ax.set_title(titre_subplt)
-                    ax.set_xlim([1, maxdepi+100])
-                    ax.set_ylim([2, evt.Io_sup+1])
-                   
-                    axMH_IPE.set_title(titre_subplt)
-                    axMH_IPE.set_xlim([self.depth_min_ref-1, self.depth_max_ref+2])
-                    axMH_IPE.set_xlim([depth_min_cb_plot-1, depth_max_cb_plot+2])
-                    
-                    
-                    cb = mpl.colorbar.ColorbarBase(axcb,
-                                                   cmap=cmapcb,
-                                                   norm=normcb,
-                                                   orientation='vertical')
-                    cb.set_label('Depth [km]', size=12)
-                    cb.set_ticks(np.arange(self.depth_min_ref, self.depth_max_ref+5, 5))
-                    cb.ax.invert_yaxis()
-                    ax.xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
-                    locmaj = mpl.ticker.LogLocator(base=10.0, subs=(0.1, 0.2, 0.5, 1, 2, 5, 10 ))
-                    ax.xaxis.set_major_locator(locmaj)
-                    ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
-                    
-                    
-
-                    # Avoiding too small values of H sigma
-                    if abs(depth - self.depth_max_ref) < 0.001:
-                        StdH_fin = max([StdH_fin, 5. / self.LimitForSamplingInStd])
-                    if abs(depth - self.depth_min_ref) < 0.001:
-                        StdH_fin = max([StdH_fin, 1. / self.LimitForSamplingInStd])
-                    # Storage of the IPEs central values and associated sigmas
-                    self.result_by_EMPE.loc[self.index_result] = [evt.evid, methode_bin, C1, C2, Beta, gamma, mag,
-                                       StdM_fin, depth, StdH_fin, I0]
-                    # I0 filtering of the gaussian space of solutions
-                    dM = self.LimitForSamplingInStd * StdM_fin / float(self.NSamples)
-                    dH = self.LimitForSamplingInStd * StdH_fin / float(self.NSamples)
-                    if dH == 0:
-                        dH = 0.25
-                    try:
-                        Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
-                        Hexp_min = max([self.depth_min_ref, depth - self.LimitForSamplingInStd * StdH_fin])
-                        Hexp_max = min([self.depth_max_ref, depth + self.LimitForSamplingInStd * StdH_fin])
-                        Hexplore = np.linspace(Hexp_min, Hexp_max, self.NSamples)
-                        
-                        sommewM = 0
-                        ntest_explore = len(Mexplore)*len(Hexplore)
-                        
-                        for Mm in Mexplore:
-                            wM = np.exp(-0.5*((Mm-mag)/StdM_fin)**2) 
-                            sommewM += wM
-                            sommewH = 0
-                            for Hm in Hexplore:                    
-                                wH = np.exp(-0.5*((Hm-depth)/StdH_fin)**2)
-                                sommewH += wH
-                                if Hm > self.depth_max_ref:
-                                    Hm = self.depth_max_ref
-                                if Hm < self.depth_min_ref:
-                                    Hm = self.depth_min_ref
-
-                                Io_test = C1 + C2 * Mm + Beta * np.log10(Hm) + gamma * Hm
-                                if (Io_test >= evt.Io_inf) and (Io_test <= evt.Io_sup):
-                                    Triplets['Magnitude'].append(float(Mm))
-                                    Triplets['Profondeur'].append(float(Hm))
-                                    Triplets['Io'].append(float(Io_test))
-                                    try:                        
-                                        Triplets['Weights'].append(wH[0]*wM[0])
+                            Io_test = C1 + C2 * Mm + Beta * np.log10(Hm) + gamma * Hm
+                            if (Io_test >= evt.Io_inf) and (Io_test <= evt.Io_sup):
+                                Triplets['Magnitude'].append(float(Mm))
+                                Triplets['Profondeur'].append(float(Hm))
+                                Triplets['Io'].append(float(Io_test))
+                                try:                        
+                                    Triplets['Weights'].append(wH[0]*wM[0])
+                                except IndexError:
+                                    produit = wH*wM 
+                                    try:
+                                        Triplets['Weights'].append(produit[0])
                                     except IndexError:
-                                        produit = wH*wM 
-                                        try:
-                                            Triplets['Weights'].append(produit[0])
-                                        except IndexError:
-                                            Triplets['Weights'].append(produit)
-                        # MAJ du logfile
-                        n_in_explore = len(Triplets['Magnitude'])
-                        pourcent_in = n_in_explore/ntest_explore*100.
-                        self.writeOnLogFile('Pourcent of solutions compatible with I0: ' +str(pourcent_in) +'%')
-                        
-                    except ZeroDivisionError:
-                        with open('No_start_depth'+ self.tag+'.txt','a') as no_startdepth:
-                            no_startdepth.write(str(evt.evid) + '\t' + empe + '\n')
-                    except:
+                                        Triplets['Weights'].append(produit)
+                    # MAJ du logfile
+                    n_in_explore = len(Triplets['Magnitude'])
+                    pourcent_in = n_in_explore/ntest_explore*100.
+                    self.writeOnLogFile('Pourcent of solutions compatible with I0: ' +str(pourcent_in) +'%')
+                    
+                except ZeroDivisionError:
+                    with open('No_start_depth'+ self.tag+'.txt','a') as no_startdepth:
+                        no_startdepth.write(str(evt.evid) + '\t' + empe + '\n')
+                except:
 #                        Mexplore = np.linspace(mag - self.LimitForSamplingInStd * StdM_fin, mag + self.LimitForSamplingInStd * StdM_fin,  self.NSamples)
 #                        print(self.depth_min_ref, depth)
 #                        print(mag, self.LimitForSamplingInStd * StdM_fin)
 #                        print(self.NSamples)
-                        print('unknown error in solutions space constitution')
+                    print('unknown error in solutions space constitution')
                                  
 #%%
                 if len(Triplets['Magnitude']) == 0:
