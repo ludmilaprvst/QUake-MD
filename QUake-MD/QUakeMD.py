@@ -94,7 +94,7 @@ class QUakeMD():
         self.NSamples = 20
         
         # Initialization of PDF parameters
-        self.all_PDF = PDF(self.depth_min_ref, self.depth_max_ref)
+        
         
         #Definition standard deviations for I0 based on quality factor
         self.Std = {'A': 0.5, 'B': 0.5, 'C': 0.5, 'E': 0.750}
@@ -288,7 +288,7 @@ class QUakeMD():
         self.writeOnLogFile("Sigma sampling :" + str(self.LimitForSamplingInStd))
         
         # # Initialization of PDF
-        # PDF_HM, PDF_HIo, PDF_HMIo = self.init_PDF()
+        self.all_PDF = PDF(self.depth_min_ref, self.depth_max_ref)
         
         # Initialization of barycenter
         (big_somme,  Barycentre_Mag, Barycentre_LogH,
@@ -303,7 +303,7 @@ class QUakeMD():
 
         DataObs = copy.deepcopy(evt.Obsevid)
         DataObs_ref = evt.Obsevid.copy()
-       
+        
         # Dealing with the IDP 0 values
         self.cleaning_Ieq0(evt)
         # Dealing with the IDP with I value superior to epicentral intensity
@@ -329,6 +329,7 @@ class QUakeMD():
             
             # Preparation of the data
             evt.Binning_Obs(8, Ic, method_bin=methode_bin) # Abritary 8 km depth
+            #print(evt.ObsBinn)
 
             
             # Initialization of figure with results of inversion of intensity data
@@ -366,6 +367,7 @@ class QUakeMD():
                 I0_ini = evt.Io_ini
                 #evt.Io_inv = I0_ini
                 evt.add_invMHI0_variables(QI0_inv, I0_ini, Ic)
+                print()
                 start_depth, start_mag = SearchBestStartDepth(evt, Beta, C1, C2, gamma,
                                                               self.depth_min_ref, self.depth_max_ref, self.nbre_prof_test)
                 #print(start_depth, start_mag)

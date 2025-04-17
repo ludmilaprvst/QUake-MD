@@ -201,6 +201,7 @@ def add_I02obsbin(evt, depth, StdI_0):
 
     """
     ObsBin = evt.ObsBinn.copy()
+    #print(ObsBin)
     len01 = len(ObsBin)
     ObsBin = pd.concat([ObsBin, pd.DataFrame({'EVID' : [evt.evid],
                             'Depi' : [0],
@@ -262,6 +263,7 @@ def SearchBestStartDepth(evt, beta, c1, c2, gamma,
         ObsBin = add_I02obsbin(evt, depth, StdI_0)
 
         if ObsBin.shape[0]>nObsMin:
+
             Mag, StdM = WLSIC.WLSIC_oneEvt(ObsBin, depth, 1, beta, gamma, c1, c2).do_wls_M()
 
             Dhypo = ObsBin['Hypo'].values
