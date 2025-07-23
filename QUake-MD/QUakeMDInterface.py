@@ -65,7 +65,7 @@ class QUakeMdInterface(tk.Toplevel):
         self.buttonDepthMaxNo = tk.Button(self, text="No", command=self.onButtonDepthMaxNoClick, state='disabled')
         
         self.labelIc = tk.Label(self, text="Do you want to fix an intensity of completeness ?", bg='white')
-        self.variableIc = tk.IntVar()
+        self.variableIc = tk.DoubleVar()
         self.entryIc = tk.Entry(self, textvariable=self.variableIc, width=10, state='readonly')
         self.buttonIcYes = tk.Button(self, text="Yes", command=self.onButtonIcYesClick, state='disabled')
         self.buttonIcNo = tk.Button(self, text="No", command=self.onButtonIcNoClick, state='disabled')
