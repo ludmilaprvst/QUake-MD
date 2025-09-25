@@ -68,7 +68,7 @@ class QUakeMdInterface(tk.Toplevel):
         self.variableIc = tk.DoubleVar()
         self.entryIc = tk.Entry(self, textvariable=self.variableIc, width=10, state='readonly')
         self.buttonIcYes = tk.Button(self, text="Yes", command=self.onButtonIcYesClick, state='disabled')
-        self.buttonIcNo = tk.Button(self, text="No", command=self.onButtonIcNoClick, state='disabled')
+        self.buttonIcNo = tk.Button(self, text="From Evt file", command=self.onButtonIcNoClick, state='disabled')
         
         self.labelDirectory = tk.Label(self, text="In which directory do you want to save your data ?", bg='white')
         self.variableDirectory = tk.StringVar()
@@ -204,10 +204,10 @@ class QUakeMdInterface(tk.Toplevel):
         self.entryIc.config(state='normal')
         self.buttonIcYes.config(state='normal')
         self.buttonIcNo.config(state='normal')
-        try:
-            self.files.ParameterFile
-        except:
-            self.buttonIcNo.config(state='disabled')
+        # try:
+        #     self.files.ParameterFile
+        # except:
+        #     self.buttonIcNo.config(state='disabled')
         
         self.entryDirectory.config(state='normal')
         self.buttonDirectory.config(state='normal')
@@ -386,6 +386,12 @@ class QUakeMdInterface(tk.Toplevel):
         if (self.variableIc.get() < 0) or (self.variableDepthMin.get() < 0) or (self.variableDepthMax.get() < 0):
              tkm.showerror("Error", "Problem with Ic, Depth Min/max values")
              return
+        else:
+            if not self.entryIc.config()['state'][4] == 'normal':
+                print("Ic taken from Evt file")
+            else:
+                pass
+             
          
         sumVC = 0
         for i in range(len(self.listeVariableCoeff)):
@@ -424,11 +430,26 @@ class QUakeMdInterface(tk.Toplevel):
             try:
                 self.evt
                 if self.evt.evid == self.variableEvid.get():
+                    try:
+                        ic = self.evt.Ic
+                    except:
+                        if ic == False:
+                            tkm.showerror("Error", "Ic values missing from Evt file")
+                            return
+                        else:
+                            pass
                     queue.put(self.evt)
                 else: 
                     evt = peo.PlotEvt(self.files)
                     evt.build(self.variableEvid.get())
+                    try:
+                        ic = evt.Ic
+                    except:
+                        if ic == False:
+                            tkm.showerror("Error", "Ic values missing from Evt file") 
+                            return
                     queue.put(evt)
+                    
             except:
                 evt = peo.PlotEvt(self.files)
                 evt.build(self.variableEvid.get())
@@ -462,6 +483,7 @@ class QUakeMdInterface(tk.Toplevel):
         if folder == "":
             tkm.showerror("Error", "Need a folder")
         # Ajouter listeIbin
+       
         thread = QUakeThread(queue, self.variableEvt.get(), self.variableObs.get(), 
                      listeEq, listeCoeff, listeIbin, ic, 
                      folder, depthmin,

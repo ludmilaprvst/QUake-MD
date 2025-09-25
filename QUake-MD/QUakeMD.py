@@ -43,7 +43,10 @@ class QUakeMD():
     """
     Core of QUage-MD GUI: compute a space of M/H solutions based on IDPs and IPEs
     
-    Described in [ref biblio]
+    Described in Provost, L., & Scotti, O. (2020). 
+    QUake‐MD: Open‐source code to quantify uncertainties in magnitude–depth 
+    estimates of earthquakes from macroseismic intensities. Seismological 
+    Research Letters, 91(5), 2520-2530. 
     """
     def __init__(self, evts, Evtname, Obsname, 
                        listVarEq, listVarCoeff, listeIbin, Parametername="", Ic=False, output_folder=False,
@@ -311,7 +314,12 @@ class QUakeMD():
         evt.Obsevid.loc[DataObs_ref['Iobs'] >= I0_ini, 'Iobs'] = I0_ini
         # Saving the different isoseismal
         if self.Ic == False:
-            Ic_ref = copy.deepcopy(evt.Ic)
+            try:
+                Ic_ref = copy.deepcopy(evt.Ic)
+            except AttributeError:
+                print("Error: No Ic from Evt file")
+                raise ValueError("Error: No Ic from Evt file")
+                return
         else:
             Ic_ref = self.Ic
         self.save_isoseist(evt, Ic_ref)

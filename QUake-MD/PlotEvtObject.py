@@ -40,8 +40,8 @@ class PlotEvt():
             ObsFile = self.FfP.ObsFile
         except AttributeError:
             tkm.showerror("Error", "Unexpected error, please reload the input data files by pushing Reset")
-        if hasattr(self.FfP,'Parameter file'):
-            ParameterFile = self.FfP.ParameterFile
+        # if hasattr(self.FfP,'Parameter file'):
+        #     ParameterFile = self.FfP.ParameterFile
         
         # if self.evid < 0 or not isinstance(self.evid,int):
         #     tkm.showerror("Error", "Please enter an integer")
@@ -79,6 +79,10 @@ class PlotEvt():
         print("QPos")
         print(self.QPos)
         self.Io_ini = EvtFile[EvtFile['EVID']==self.evid]['I0'].values[0]
+        try:
+            self.Ic = EvtFile[EvtFile['EVID']==self.evid]['Ic'].values[0]
+        except KeyError:
+            print('No Ic in Evt file')
         if self.Io_ini < 0 or self.Io_ini > 12:
             tkm.showerror("Error","invalid I0")
             return;
