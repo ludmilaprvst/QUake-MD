@@ -606,7 +606,7 @@ class QUakeMD():
         plt.title(str(evt.evid))
 
         plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HM.png')  
-        plt.show()
+        #plt.show()
         
     def plot_HMI0(self, evt, prof_plot, mag_plot, io_plot, poids_plot):
         fig = plt.figure()
@@ -619,7 +619,7 @@ class QUakeMD():
         ax.set_ylabel('Magnitude')
         ax.set_zlabel('Io')
         plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HMIo.png') 
-        plt.show()  
+        #plt.show()  
         
     def plot_HI0(self, evt, io_plot, prof_plot, poids_plot,
                  depth_min, depth_max):
@@ -651,7 +651,7 @@ class QUakeMD():
         plt.ylabel('Io')
         plt.title(str(evt.evid))
         plt.savefig(self.output_folder+'/'+str(evt.evid)+'/HIo.png')  
-        plt.show()
+        #plt.show()
         
     def write_header_PDF(self, fileLaw, evt, Barycentre_Io, Barycentre_Mag, Barycentre_LogH):
         fileLaw.write('NumEvt: '+ str(evt.evid) + ', year=' + str(int(evt.year)))

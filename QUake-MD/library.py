@@ -14,8 +14,8 @@ from numba import jit
 
 
 #@jit
-def RAVG_c(IObs: np.ndarray, Hypo: np.ndarray, QIobs: np.ndarray, I0: np.float,
-           QI0: np.float, depth: np.float, evid: np.int, Ic: np.float, Nbin: np.int):
+def RAVG_c(IObs: np.ndarray, Hypo: np.ndarray, QIobs: np.ndarray, I0: float,
+           QI0: float, depth: float, evid: int, Ic: float, Nbin: int):
     """
     Binning function by intensity level
     
@@ -86,7 +86,8 @@ def RAVG_c(IObs: np.ndarray, Hypo: np.ndarray, QIobs: np.ndarray, I0: np.float,
 
 
 @jit
-def RAVG_c_without(IObs: np.ndarray, Hypo: np.ndarray, QIobs: np.ndarray, I0: np.float, QI0: np.float, depth: np.float, evid: np.int, Ic: np.float, Nbin: np.int):
+def RAVG_c_without(IObs: np.ndarray, Hypo: np.ndarray, QIobs: np.ndarray, 
+                   I0: float, QI0: float, depth: float, evid: int, Ic: float, Nbin: int):
     
     ClassWidth = 0.5
     MinDataPerClass = 1.0
